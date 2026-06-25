@@ -138,7 +138,7 @@ export default function Home() {
             &#9670; AegisML
           </span>
           <a
-            href="github.com/hasanalaaa/aegisml"
+            href="https://github.com/hasanalaaa/aegisml"
             target="_blank"
             rel="noopener noreferrer"
             className="text-aegis-muted text-sm hover:text-aegis-text transition-colors"
