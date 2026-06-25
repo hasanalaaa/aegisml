@@ -1,0 +1,11 @@
+services:
+  scan-engine:
+    build:
+      context: .
+      dockerfile: services/scan-engine/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./aegisml:/app/aegisml_pkg/aegisml:ro
