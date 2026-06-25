@@ -1,17 +1,21 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Cairo } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const cairo = Cairo({
+  subsets: ["latin", "arabic"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "AegisML — Scan AI Models for Malware",
-  description: "Detect backdoors, trojans & malicious code in AI models before they reach production. Open-source security scanner for .gguf, .safetensors, .pkl files.",
-  keywords: ["AI security", "model scanning", "malware detection", "GGUF", "safetensors", "pickle", "backdoor"],
+  description: "Detect backdoors, trojans & malicious code in AI models before they reach production. Open-source scanner for .gguf, .safetensors, .pkl files.",
+  keywords: ["AI security", "model scanning", "malware detection", "GGUF", "safetensors", "pickle", "LLM security", "open source"],
   authors: [{ name: "AegisML", url: "https://aegisml.vercel.app" }],
   openGraph: {
     title: "AegisML — Scan AI Models for Malware",
-    description: "Detect backdoors, trojans & malicious code in AI models before they reach production.",
+    description: "Detect backdoors, trojans & malicious code in AI models before running them in production.",
     url: "https://aegisml.vercel.app",
     siteName: "AegisML",
     type: "website",
@@ -19,14 +23,15 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "AegisML — Scan AI Models for Malware",
-    description: "Open-source security scanner for AI models.",
+    description: "Open-source security scanner for AI models. Detect backdoors before running in production.",
   },
+  robots: { index: true, follow: true },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl">
-      <body className={inter.className} style={{ margin: 0, background: "#0A0A0F" }}>
+    <html lang="ar">
+      <body className={cairo.className} style={{ margin: 0, background: "#0A0A0F" }}>
         {children}
       </body>
     </html>
