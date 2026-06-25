@@ -1,57 +1,6 @@
 "use client";
 
-import { useState } from "react";
-
-/* ─── Types ──────────────────────────────────────────────────────── */
-
-interface Finding {
-  type: string;
-  severity: string;
-  description: string;
-  pattern: string | null;
-}
-
-interface ScanResult {
-  scan_id: string;
-  status: string;
-  risk_score: number;
-  severity: string;
-  findings: Finding[];
-  duration_ms: number | null;
-  model_format: string | null;
-  filename: string | null;
-  repo_id?: string;
-}
-
-/* ─── Severity helpers ───────────────────────────────────────────── */
-
-const severityColor: Record<string, string> = {
-  clean: "text-aegis-clean",
-  suspicious: "text-aegis-suspicious",
-  malicious: "text-aegis-critical",
-  critical: "text-aegis-critical",
-};
-
-const severityBorder: Record<string, string> = {
-  clean: "border-aegis-clean",
-  suspicious: "border-aegis-suspicious",
-  malicious: "border-aegis-critical",
-  critical: "border-aegis-critical",
-};
-
-const severityBg: Record<string, string> = {
-  clean: "bg-aegis-clean/10",
-  suspicious: "bg-aegis-suspicious/10",
-  malicious: "bg-aegis-critical/10",
-  critical: "bg-aegis-critical/10",
-};
-
-const severityLabel: Record<string, string> = {
-  clean: "CLEAN",
-  suspicious: "SUSPICIOUS",
-  malicious: "MALICIOUS",
-  critical: "CRITICAL",
-};
+import { useState, useRef } from "react";
 
 /* ─── Steps data ─────────────────────────────────────────────────── */
 
@@ -89,43 +38,25 @@ const stats = [
 /* ─── Page component ─────────────────────────────────────────────── */
 
 export default function Home() {
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<ScanResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleScan() {
-    const value = input.trim();
-    if (!value) return;
-
-    setLoading(true);
-    setError(null);
-    setResult(null);
-
+    if (!file || scanning) return;
+    setScanning(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
     try {
-      const res = await fetch("http://localhost:8000/api/v1/scan/hf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repo_id: value }),
-      });
-
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => null);
-        throw new Error(
-          errBody?.detail || `Server responded with ${res.status}`
-        );
-      }
-
-      const data: ScanResult = await res.json();
-      setResult(data);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Failed to connect to scan engine. Is the backend running?");
-      }
-    } finally {
-      setLoading(false);
+      const res = await fetch(`${API}/api/v1/scan/file`, { method: "POST", body: formData });
+      if (!res.ok) throw new Error("فشل الفحص");
+      const data = await res.json();
+      window.location.href = `/scan/${data.scan_id}`;
+    } catch {
+      alert("فشل الاتصال بالـ Backend.");
+      setScanning(false);
     }
   }
 
@@ -162,136 +93,62 @@ export default function Home() {
           </p>
 
           {/* ── Scan form ──────────────────────────────────────── */}
-          <div className="mt-10 flex flex-col sm:flex-row gap-3 max-w-xl mx-auto">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleScan()}
-              placeholder="Enter HuggingFace repo ID or file path..."
-              className="flex-1 px-4 py-3 rounded-lg bg-aegis-card border border-white/10 text-aegis-text placeholder:text-aegis-muted/50 outline-none focus:border-aegis-gold/50 transition-colors"
-            />
-            <button
-              onClick={handleScan}
-              disabled={loading || !input.trim()}
-              className="px-6 py-3 rounded-lg bg-aegis-gold text-aegis-bg font-semibold hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          <div className="mt-10 max-w-xl mx-auto">
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) setFile(f); }}
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                border: `2px dashed ${dragOver ? "#C9A84C" : file ? "#2ECC71" : "#2A2A3E"}`,
+                borderRadius: 12,
+                padding: "32px 24px",
+                textAlign: "center",
+                cursor: "pointer",
+                background: dragOver ? "rgba(201,168,76,0.05)" : "transparent",
+                transition: "all 0.2s",
+                marginBottom: 16,
+              }}
             >
-              {loading ? "Scanning..." : "Scan Now"}
-            </button>
-          </div>
-
-          {/* ── Error display ──────────────────────────────────── */}
-          {error && (
-            <div className="mt-6 max-w-xl mx-auto p-4 rounded-lg bg-aegis-critical/10 border border-aegis-critical/30 text-aegis-critical text-sm text-left">
-              <span className="font-semibold">Error: </span>
-              {error}
-            </div>
-          )}
-
-          {/* ── Scan result ────────────────────────────────────── */}
-          {result && (
-            <div className="mt-8 max-w-xl mx-auto text-left">
-              {/* Summary card */}
-              <div
-                className={`rounded-lg border p-5 ${
-                  severityBorder[result.severity] || "border-white/10"
-                } ${severityBg[result.severity] || ""}`}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs text-aegis-muted font-mono">
-                    {result.scan_id}
-                  </span>
-                  <span
-                    className={`text-xs font-bold px-2 py-0.5 rounded ${
-                      severityColor[result.severity] || "text-aegis-text"
-                    }`}
-                  >
-                    {severityLabel[result.severity] || result.severity.toUpperCase()}
-                  </span>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".gguf,.safetensors,.pkl,.pickle,.pt,.pth"
+                style={{ display: "none" }}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) setFile(f); }}
+              />
+              {file ? (
+                <div>
+                  <p style={{ color: "#2ECC71", fontWeight: 700, margin: "0 0 4px", fontSize: 16 }}>✓ {file.name}</p>
+                  <p style={{ color: "#666688", margin: 0, fontSize: 13 }}>{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                 </div>
-
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-aegis-muted block text-xs">
-                      Risk Score
-                    </span>
-                    <span
-                      className={`text-2xl font-bold ${
-                        severityColor[result.severity] || "text-aegis-text"
-                      }`}
-                    >
-                      {result.risk_score}
-                    </span>
-                    <span className="text-aegis-muted text-sm"> / 100</span>
-                  </div>
-                  <div>
-                    <span className="text-aegis-muted block text-xs">
-                      Status
-                    </span>
-                    <span className="text-lg font-semibold text-aegis-text">
-                      {result.status}
-                    </span>
-                  </div>
-                  {result.model_format && (
-                    <div>
-                      <span className="text-aegis-muted block text-xs">
-                        Format
-                      </span>
-                      <span className="text-aegis-text">
-                        {result.model_format}
-                      </span>
-                    </div>
-                  )}
-                  {result.duration_ms != null && (
-                    <div>
-                      <span className="text-aegis-muted block text-xs">
-                        Duration
-                      </span>
-                      <span className="text-aegis-text">
-                        {result.duration_ms.toFixed(1)} ms
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Findings list */}
-              {result.findings && result.findings.length > 0 && (
-                <div className="mt-4 space-y-2">
-                  <h3 className="text-sm font-semibold text-aegis-muted mb-2">
-                    Findings ({result.findings.length})
-                  </h3>
-                  {result.findings.map((f, i) => (
-                    <div
-                      key={i}
-                      className="p-3 rounded-lg bg-aegis-card border border-white/5 text-sm"
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <span
-                          className={`text-xs font-bold ${
-                            severityColor[f.severity] || "text-aegis-muted"
-                          }`}
-                        >
-                          {f.severity.toUpperCase()}
-                        </span>
-                        <span className="text-aegis-muted text-xs font-mono">
-                          {f.type}
-                        </span>
-                        {f.pattern && (
-                          <code className="text-xs bg-white/5 px-1.5 py-0.5 rounded text-aegis-gold">
-                            {f.pattern}
-                          </code>
-                        )}
-                      </div>
-                      <p className="text-aegis-text/80 text-xs leading-relaxed">
-                        {f.description}
-                      </p>
-                    </div>
-                  ))}
+              ) : (
+                <div>
+                  <p style={{ color: "#A8A8C4", margin: "0 0 4px", fontSize: 15 }}>اسحب الملف هنا أو انقر للاختيار</p>
+                  <p style={{ color: "#555577", margin: 0, fontSize: 12 }}>يدعم: .gguf • .safetensors • .pkl • .pt • .pth</p>
                 </div>
               )}
             </div>
-          )}
+
+            <button
+              onClick={handleScan}
+              disabled={!file || scanning}
+              style={{
+                background: file && !scanning ? "linear-gradient(135deg, #C9A84C, #E4C46B)" : "#1E1E2E",
+                color: file && !scanning ? "#0A0A0F" : "#555577",
+                border: "none",
+                padding: "14px 40px",
+                borderRadius: 10,
+                fontWeight: 800,
+                fontSize: 16,
+                cursor: file && !scanning ? "pointer" : "not-allowed",
+                transition: "all 0.2s",
+                width: "100%",
+              }}
+            >
+              {scanning ? "⏳ جارٍ الفحص..." : "⬡ Scan Now"}
+            </button>
+          </div>
         </section>
 
         {/* ── Stats ─────────────────────────────────────────────── */}

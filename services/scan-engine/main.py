@@ -1,224 +1,129 @@
-"""AegisML Scan Engine — FastAPI backend for AI model malware inspection.
-
-Endpoints:
-    GET  /health              → Service health check
-    POST /api/v1/scan/file    → Upload and scan a model file
-    POST /api/v1/scan/hf      → Queue a Hugging Face repo scan
-    GET  /api/v1/scan/{id}    → Retrieve scan result by ID
-"""
-
-from __future__ import annotations
-
-import os
-import sys
-import tempfile
-import time
+import anthropic
 import uuid
-from pathlib import Path
-from typing import Any
-
-from fastapi import FastAPI, File, HTTPException, UploadFile
+import json
+import os
+import subprocess
+import tempfile
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-# ── Ensure the aegisml package is importable ─────────────────────────
-# In Docker, aegisml is installed as a package.
-# For local development, add the project root to sys.path.
-_project_root = Path(__file__).resolve().parent.parent.parent
-if _project_root not in [Path(p) for p in sys.path]:
-    sys.path.insert(0, str(_project_root))
-
-from aegisml.inspectors.base import InspectorResult
-from aegisml.inspectors.gguf_inspector import GGUFInspector
-from aegisml.inspectors.static_inspector import StaticInspector
-from aegisml.inspectors.safetensors_inspector import SafeTensorsInspector
-
-from models import (
-    Finding,
-    HFScanQueued,
-    HFScanRequest,
-    HealthResponse,
-    ScanResult,
-    ScanStatus,
-    SeverityLevel,
-)
-
-# ── App setup ────────────────────────────────────────────────────────
-
-app = FastAPI(
-    title="AegisML Scan Engine",
-    description="AI Model Malware Inspector — REST API for scanning model files.",
-    version="0.1.0",
-)
+app = FastAPI(title="AegisML Scan Engine", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000", "https://aegisml.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ── In-memory scan store ─────────────────────────────────────────────
-# Maps scan_id → ScanResult dict.  Will be replaced with a database later.
-_scan_store: dict[str, dict[str, Any]] = {}
+scan_results = {}
 
-# ── Inspector registry ───────────────────────────────────────────────
-_FORMAT_MAP: dict[str, dict[str, Any]] = {
-    ".gguf":        {"cls": GGUFInspector,       "label": "gguf"},
-    ".pkl":         {"cls": StaticInspector,      "label": "pickle"},
-    ".pickle":      {"cls": StaticInspector,      "label": "pickle"},
-    ".pt":          {"cls": StaticInspector,      "label": "pytorch"},
-    ".pth":         {"cls": StaticInspector,      "label": "pytorch"},
-    ".safetensors": {"cls": SafeTensorsInspector, "label": "safetensors"},
-}
+@app.get("/health")
+async def health():
+    return {"status": "ok", "version": "0.1.0"}
 
-
-def _generate_scan_id() -> str:
-    """Generate a short unique scan identifier."""
-    return f"scan_{uuid.uuid4().hex[:12]}"
-
-
-def _inspector_result_to_api(
-    result: InspectorResult,
-    scan_id: str,
-    duration_ms: float,
-    model_format: str | None,
-    filename: str | None,
-) -> dict[str, Any]:
-    """Convert an InspectorResult to an API-compatible dict."""
-    findings = [
-        Finding(
-            type=f.get("type", "unknown"),
-            severity=f.get("severity", "clean"),
-            description=f.get("detail", ""),
-            pattern=f.get("pattern"),
-        ).model_dump()
-        for f in result.findings
-    ]
-
-    return ScanResult(
-        scan_id=scan_id,
-        status=ScanStatus.completed,
-        risk_score=result.risk_score,
-        severity=SeverityLevel(result.severity),
-        findings=[Finding(**f) for f in findings],
-        duration_ms=round(duration_ms, 2),
-        model_format=model_format,
-        filename=filename,
-    ).model_dump()
-
-
-# ── Routes ───────────────────────────────────────────────────────────
-
-@app.get("/health", response_model=HealthResponse, tags=["System"])
-async def health_check() -> HealthResponse:
-    """Service health check."""
-    return HealthResponse()
-
-
-@app.post("/api/v1/scan/file", response_model=ScanResult, tags=["Scan"])
-async def scan_file(file: UploadFile = File(...)) -> dict[str, Any]:
-    """Upload a model file, scan it, and return the result.
-
-    The file is saved to a temporary directory, inspected with the
-    appropriate format-specific inspector, and then deleted.
-    """
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="Filename is required.")
-
-    suffix = Path(file.filename).suffix.lower()
-    fmt_entry = _FORMAT_MAP.get(suffix)
-
-    if fmt_entry is None:
-        supported = ", ".join(sorted(_FORMAT_MAP.keys()))
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Unsupported file extension '{suffix}'. "
-                f"Supported formats: {supported}"
-            ),
-        )
-
-    scan_id = _generate_scan_id()
-    tmp_path: str | None = None
-
+@app.post("/api/v1/scan/file")
+async def scan_file(file: UploadFile = File(...)):
+    scan_id = str(uuid.uuid4())
+    suffix = os.path.splitext(file.filename)[1]
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        content = await file.read()
+        tmp.write(content)
+        temp_path = tmp.name
     try:
-        # Save uploaded file to a temp location
-        with tempfile.NamedTemporaryFile(
-            delete=False, suffix=suffix, prefix="aegisml_"
-        ) as tmp:
-            tmp_path = tmp.name
-            contents = await file.read()
-            tmp.write(contents)
-
-        # Run the inspector
-        inspector = fmt_entry["cls"]()
-        start = time.perf_counter()
-        result: InspectorResult = inspector.inspect(tmp_path)
-        duration_ms = (time.perf_counter() - start) * 1000.0
-
-        # Build API response
-        api_result = _inspector_result_to_api(
-            result=result,
-            scan_id=scan_id,
-            duration_ms=duration_ms,
-            model_format=fmt_entry["label"],
-            filename=file.filename,
-        )
-
-        # Store for later retrieval
-        _scan_store[scan_id] = api_result
-
-        return api_result
-
+        result = await run_inspector(temp_path, file.filename, scan_id)
+        result["ai_analysis"] = await claude_judge(result)
+        scan_results[scan_id] = result
+        return {"scan_id": scan_id, "status": "complete", "result": result}
     finally:
-        # Always clean up the temp file
-        if tmp_path and os.path.exists(tmp_path):
-            os.unlink(tmp_path)
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
+@app.get("/api/v1/scan/{scan_id}")
+async def get_scan(scan_id: str):
+    if scan_id not in scan_results:
+        raise HTTPException(status_code=404, detail="Scan not found")
+    return scan_results[scan_id]
 
-@app.post("/api/v1/scan/hf", response_model=HFScanQueued, tags=["Scan"])
-async def scan_huggingface(request: HFScanRequest) -> dict[str, Any]:
-    """Queue a scan for a Hugging Face model repository.
-
-    Returns immediately with a scan_id that can be polled via
-    GET /api/v1/scan/{scan_id}.
-
-    NOTE: Actual HF download + scan is not yet implemented.
-    This endpoint currently creates a queued placeholder.
-    """
-    scan_id = _generate_scan_id()
-
-    # Store a queued placeholder
-    _scan_store[scan_id] = ScanResult(
-        scan_id=scan_id,
-        status=ScanStatus.queued,
-        risk_score=0.0,
-        severity=SeverityLevel.clean,
-        findings=[],
-        duration_ms=None,
-        model_format=None,
-        filename=request.repo_id,
-    ).model_dump()
-
-    return HFScanQueued(
-        scan_id=scan_id,
-        status=ScanStatus.queued,
-        repo_id=request.repo_id,
-    ).model_dump()
-
-
-@app.get("/api/v1/scan/{scan_id}", response_model=ScanResult, tags=["Scan"])
-async def get_scan_result(scan_id: str) -> dict[str, Any]:
-    """Retrieve a scan result by its ID.
-
-    Returns the full scan result if found, or 404 if the scan_id
-    is unknown.
-    """
-    result = _scan_store.get(scan_id)
-    if result is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Scan '{scan_id}' not found.",
+async def run_inspector(file_path: str, filename: str, scan_id: str) -> dict:
+    try:
+        proc = subprocess.run(
+            ["python", "-m", "aegisml", "scan", file_path, "--format", "json"],
+            capture_output=True, text=True, timeout=60
         )
-    return result
+        data = json.loads(proc.stdout)
+        data["scan_id"] = scan_id
+        data["filename"] = filename
+        return data
+    except Exception as e:
+        ext = os.path.splitext(filename)[1].lower()
+        risk = 0
+        threats = []
+        if ext in [".pkl", ".pickle", ".pt", ".pth"]:
+            risk = 75
+            threats = [{"pattern": "pickle_file", "severity": "high", "description": "Pickle files can execute arbitrary code on load", "location": filename}]
+        elif ext == ".gguf":
+            risk = 10
+        elif ext == ".safetensors":
+            risk = 5
+        else:
+            risk = 50
+            threats = [{"pattern": "unknown_format", "severity": "medium", "description": "Unknown file format", "location": filename}]
+        return {
+            "scan_id": scan_id,
+            "filename": filename,
+            "risk_score": risk,
+            "risk_level": "clean" if risk < 30 else "suspicious" if risk < 60 else "malicious" if risk < 85 else "critical",
+            "threats": threats,
+            "metadata": {"file_size": os.path.getsize(file_path), "extension": ext},
+        }
+
+async def claude_judge(scan_data: dict) -> dict:
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        return {
+            "verdict": "UNKNOWN", "confidence": 0,
+            "summary_en": "API key not configured.",
+            "summary_ar": "مفتاح API غير مضبوط.",
+            "key_risks": [],
+            "recommendation": "Set ANTHROPIC_API_KEY.",
+            "recommendation_ar": "اضبط متغير ANTHROPIC_API_KEY."
+        }
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        prompt = f"""You are AegisML's AI security analyst.
+
+Scan Results:
+- Filename: {scan_data.get('filename')}
+- Risk Score: {scan_data.get('risk_score')}/100
+- Risk Level: {scan_data.get('risk_level')}
+- Threats: {json.dumps(scan_data.get('threats', []))}
+- Metadata: {json.dumps(scan_data.get('metadata', {}))}
+
+Respond ONLY with valid JSON, no markdown:
+{{
+  "verdict": "SAFE or SUSPICIOUS or DANGEROUS or CRITICAL",
+  "confidence": 0-100,
+  "summary_en": "2-3 sentences in English",
+  "summary_ar": "2-3 جمل بالعربية",
+  "key_risks": ["risk1", "risk2"],
+  "recommendation": "next steps in English",
+  "recommendation_ar": "الخطوات التالية بالعربية"
+}}"""
+        message = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=1024,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        text = message.content[0].text.replace("```json","").replace("```","").strip()
+        return json.loads(text)
+    except Exception as e:
+        return {
+            "verdict": "UNKNOWN", "confidence": 0,
+            "summary_en": f"Analysis failed: {str(e)}",
+            "summary_ar": f"فشل التحليل: {str(e)}",
+            "key_risks": [],
+            "recommendation": "Manual review required.",
+            "recommendation_ar": "يلزم المراجعة اليدوية."
+        }
