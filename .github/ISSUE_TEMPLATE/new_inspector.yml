@@ -1,0 +1,109 @@
+name: "\U0001F50D New Inspector Proposal"
+description: Propose support for a new AI model file format
+title: "[INSPECTOR] "
+labels: ["enhancement", "new-inspector"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## New Inspector Proposal
+
+        Use this template to propose adding inspection support for a new AI model file format.
+
+  - type: input
+    id: format_name
+    attributes:
+      label: Format Name
+      description: The name of the model format
+      placeholder: "e.g. ONNX, TensorFlow SavedModel, Core ML"
+    validations:
+      required: true
+
+  - type: input
+    id: file_extensions
+    attributes:
+      label: File Extension(s)
+      description: The file extension(s) used by this format
+      placeholder: "e.g. .onnx, .pb, .mlmodel"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: risk_level
+    attributes:
+      label: Inherent Risk Level
+      description: How dangerous is this format by design?
+      options:
+        - Critical — allows arbitrary code execution (like Pickle)
+        - High — contains executable components or scripts
+        - Medium — metadata can carry payloads
+        - Low — data-only format with limited attack surface
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Format Description
+      description: Describe the format, how it stores data, and why it needs inspection.
+      placeholder: |
+        ONNX (Open Neural Network Exchange) is an open format for representing
+        machine learning models. It stores the model graph and weights in a
+        protobuf-based binary format. While the core format is data-only,
+        custom operators and external data references can introduce risks.
+    validations:
+      required: true
+
+  - type: textarea
+    id: attack_vectors
+    attributes:
+      label: Known Attack Vectors
+      description: What malicious techniques are possible with this format?
+      placeholder: |
+        - Custom operator injection
+        - Malicious initialization graphs
+        - External data references pointing to attacker-controlled URLs
+        - ...
+
+  - type: textarea
+    id: detection_strategy
+    attributes:
+      label: Proposed Detection Strategy
+      description: How should AegisML inspect this format? What should it look for?
+      placeholder: |
+        1. Validate magic bytes / protobuf header
+        2. Parse the model graph for custom operators
+        3. Check external_data fields for suspicious URLs
+        4. Scan string attributes for code injection patterns
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References & Resources
+      description: Links to format specs, known CVEs, research papers, or prior art
+      placeholder: |
+        - Format spec: https://onnx.ai/onnx/
+        - Known attack: https://example.com/onnx-rce-paper
+        - Related tool: https://github.com/example/onnx-scanner
+
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Contribution Interest
+      description: Are you willing to implement this inspector?
+      options:
+        - Yes — I will submit a PR
+        - Maybe — I can help with testing
+        - No — I am only proposing the idea
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I have searched existing issues and this format is not already proposed
+          required: true
+        - label: I have read the [CONTRIBUTING.md](../CONTRIBUTING.md) guide
+          required: true

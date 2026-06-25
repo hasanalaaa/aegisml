@@ -1,0 +1,119 @@
+name: "\U0001F6A8 Threat Report — Malicious AI Model"
+description: Report a malicious or poisoned AI model discovered in the wild
+title: "[THREAT] "
+labels: ["threat-report", "security", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Malicious AI Model Report
+
+        Thank you for reporting a potentially dangerous AI model. This information helps protect the community and improves AegisML's detection capabilities.
+
+        **Important**: If you need to share sensitive details (exploit code, private URLs), email **security@aegisml.dev** instead of using this public template.
+
+  - type: input
+    id: model_source
+    attributes:
+      label: Model Source
+      description: Where was the model found? (HuggingFace repo ID, URL, or other source)
+      placeholder: "e.g. username/malicious-model-7b-GGUF"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: model_format
+    attributes:
+      label: Model Format
+      description: What format is the model file?
+      options:
+        - GGUF
+        - Pickle (.pkl / .pickle)
+        - PyTorch (.pt / .pth)
+        - SafeTensors
+        - ONNX
+        - Other (specify below)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: threat_type
+    attributes:
+      label: Threat Type
+      description: What kind of threat was detected?
+      multiple: true
+      options:
+        - Arbitrary code execution (pickle RCE)
+        - Chat template injection
+        - Embedded malware payload
+        - Data exfiltration (network calls)
+        - Backdoor / trojan weights
+        - Supply chain attack (impersonation)
+        - Cryptominer
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Estimated Severity
+      options:
+        - Critical — active exploitation / RCE
+        - High — malicious intent confirmed
+        - Medium — suspicious patterns detected
+        - Low — anomalous but unconfirmed
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe what you found. Include AegisML scan output if available.
+      placeholder: |
+        When scanning with `aegisml scan model.pkl`, the following was detected:
+        - __reduce__ hook with os.system call
+        - Risk score: 85/100
+        - ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: How to Reproduce
+      description: Steps to reproduce the threat detection
+      placeholder: |
+        1. Download the model from [source]
+        2. Run: aegisml scan <filename>
+        3. Observe the findings
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact Assessment
+      description: What is the potential impact? How many downloads does the model have?
+      placeholder: |
+        - Model has ~10,000 downloads on HuggingFace
+        - Executes reverse shell on model load
+        - Targets PyTorch users on Linux
+
+  - type: checkboxes
+    id: actions_taken
+    attributes:
+      label: Actions Already Taken
+      options:
+        - label: I have reported this to the hosting platform (e.g., HuggingFace)
+        - label: I have notified the model author
+        - label: I have a sample of the malicious file preserved for analysis
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Acknowledgements
+      options:
+        - label: I confirm this report is made in good faith
+          required: true
+        - label: I understand this is a public issue and have not included sensitive exploit details
+          required: true
