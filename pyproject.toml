@@ -1,46 +1,38 @@
 [build-system]
-requires = ["setuptools>=68.0", "wheel"]
+requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "aegisml"
-version = "0.1.0"
-description = "AI Model Malware Inspector — scans AI model files for embedded malware and suspicious patterns."
+version = "1.0.0"
+description = "AI Model Security Scanner — Detect malware in GGUF, SafeTensors, Pickle files"
 readme = "README.md"
-license = {text = "MIT"}
-requires-python = ">=3.11"
-authors = [
-    {name = "AegisML Contributors"},
-]
-keywords = ["ai", "security", "malware", "gguf", "model-inspection"]
+license = { text = "AGPL-3.0" }
+authors = [{ name = "AegisML", email = "security@aegisml.vercel.app" }]
+keywords = ["ai", "security", "ml", "model", "scanner", "malware", "gguf", "safetensors", "llm"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Topic :: Security",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Security",
 ]
-dependencies = [
-    "click>=8.1",
-    "rich>=13.0",
-    "jinja2>=3.1",
-]
+requires-python = ">=3.9"
+dependencies = ["httpx>=0.27.0", "anthropic>=0.40.0"]
+
+[project.optional-dependencies]
+server = ["fastapi>=0.115.0", "uvicorn>=0.30.0", "sqlalchemy>=2.0.0", "aiosqlite>=0.20.0"]
+dev    = ["pytest>=8.0.0", "pytest-asyncio>=0.23.0"]
 
 [project.scripts]
-aegisml = "aegisml.cli:cli"
+aegisml = "aegisml.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/aegisml/aegisml"
-Repository = "https://github.com/aegisml/aegisml"
-Issues = "https://github.com/aegisml/aegisml/issues"
+Homepage      = "https://aegisml.vercel.app"
+Repository    = "https://github.com/hasanalaaa/aegisml"
+Documentation = "https://aegisml.vercel.app/docs"
 
 [tool.setuptools.packages.find]
 include = ["aegisml*"]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]

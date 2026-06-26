@@ -241,6 +241,9 @@ export default function ScanResultPage() {
       <nav style={{ padding: "16px 32px", borderBottom: "1px solid #1A1A2E", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "rgba(10,10,15,0.92)", backdropFilter: "blur(12px)", zIndex: 100 }}>
         <Link href="/" style={{ color: "#C9A84C", textDecoration: "none", fontWeight: 900, fontSize: 20 }}>◆ AegisML</Link>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <Link href="/dashboard" style={{ color: "#A8A8C4", textDecoration: "none", fontSize: 13, padding: "5px 14px", border: "1px solid #2A2A3E", borderRadius: 8, display: "flex", alignItems: "center" }}>
+            📊 Dashboard
+          </Link>
           {(["ar", "en"] as const).map(l => (
             <button key={l} onClick={() => setLang(l)} style={{
               background: lang === l ? "#C9A84C22" : "transparent",
@@ -435,6 +438,32 @@ export default function ScanResultPage() {
           }}>
             {lang === "ar" ? "⬇ تحميل التقرير (JSON)" : "⬇ Download JSON"}
           </button>
+          <Link href={`/badge/${result.scan_id}`} style={{
+            display: "inline-block",
+            background: "transparent",
+            border: "1px solid #2A2A3E",
+            color: "#A8A8C4",
+            padding: "13px 20px",
+            borderRadius: 10,
+            fontWeight: 600,
+            textDecoration: "none",
+            fontSize: 14,
+          }}>
+            {lang === "ar" ? "🏷️ شارة للـ README" : "🏷️ README Badge"}
+          </Link>
+          <Link href={`/compare?a=${result.scan_id}`} style={{
+            display: "inline-block",
+            background: "transparent",
+            border: "1px solid #2A2A3E",
+            color: "#A8A8C4",
+            padding: "13px 20px",
+            borderRadius: 10,
+            fontWeight: 600,
+            textDecoration: "none",
+            fontSize: 14,
+          }}>
+            {lang === "ar" ? "⚖️ مقارنة بنموذج آخر" : "⚖️ Compare with Another"}
+          </Link>
         </div>
       </main>
     </div>

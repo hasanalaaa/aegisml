@@ -1,226 +1,101 @@
-"""AegisML Command-Line Interface.
-
-Provides the ``aegisml`` CLI powered by Click and Rich.
-"""
-
+#!/usr/bin/env python3
 from __future__ import annotations
-
-import sys
+import argparse, json, sys
 from pathlib import Path
-
-import click
-from rich.console import Console
-from rich.panel import Panel
-from rich.table import Table
-from rich.text import Text
-
-from aegisml import __version__
-from aegisml.inspectors.base import InspectorResult
-from aegisml.inspectors.gguf_inspector import GGUFInspector
-from aegisml.inspectors.static_inspector import StaticInspector
-from aegisml.inspectors.safetensors_inspector import SafeTensorsInspector
-
-# Force UTF-8 on Windows to avoid cp1252 encoding errors with special chars
-if sys.platform == "win32":
-    import io
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
-
-console = Console(force_terminal=True)
-
-# ── Format -> Inspector mapping ──────────────────────────────────────
-FORMAT_REGISTRY: dict[str, dict] = {
-    ".gguf": {
-        "inspector_cls": GGUFInspector,
-        "label": "GGUF (GPT-Generated Unified Format)",
-        "status": "[green]Supported[/green]",
-        "risk_note": "[yellow]Medium[/yellow] -- metadata & templates can carry payloads",
-    },
-    ".pkl": {
-        "inspector_cls": StaticInspector,
-        "label": "Python Pickle",
-        "status": "[green]Supported[/green]",
-        "risk_note": "[red]High[/red] -- arbitrary code execution on deserialize",
-    },
-    ".pickle": {
-        "inspector_cls": StaticInspector,
-        "label": "Python Pickle",
-        "status": "[green]Supported[/green]",
-        "risk_note": "[red]High[/red] -- arbitrary code execution on deserialize",
-    },
-    ".pt": {
-        "inspector_cls": StaticInspector,
-        "label": "PyTorch Model (Pickle-based)",
-        "status": "[green]Supported[/green]",
-        "risk_note": "[red]High[/red] -- uses Pickle internally",
-    },
-    ".pth": {
-        "inspector_cls": StaticInspector,
-        "label": "PyTorch Checkpoint (Pickle-based)",
-        "status": "[green]Supported[/green]",
-        "risk_note": "[red]High[/red] -- uses Pickle internally",
-    },
-    ".safetensors": {
-        "inspector_cls": SafeTensorsInspector,
-        "label": "SafeTensors",
-        "status": "[green]Supported[/green]",
-        "risk_note": "[green]Low[/green] -- no code execution by design",
-    },
-}
-
-# Severity -> (color, marker)
-SEVERITY_STYLE: dict[str, tuple[str, str]] = {
-    "clean":      ("green",       "[CLEAN]"),
-    "suspicious": ("yellow",      "[WARN]"),
-    "malicious":  ("dark_orange", "[ALERT]"),
-    "critical":   ("red",         "[CRITICAL]"),
-}
+from typing import List
+from .scanner import AegisML, ScanResult
 
 
-def _print_banner() -> None:
-    """Print the AegisML welcome banner."""
-    banner_text = Text()
-    banner_text.append("AegisML", style="bold cyan")
-    banner_text.append(f"  v{__version__}\n", style="dim")
-    banner_text.append("AI Model Malware Inspector", style="italic white")
+def format_result(result: ScanResult) -> str:
+    score = result.risk_score
+    icon = "✅" if score < 30 else "⚠️" if score < 60 else "🚨"
+    lines = [f"\n{icon} AegisML Security Report", "=" * 50,
+             f"File:        {result.filename}", f"Risk Score:  {score:.0f}/100",
+             f"Risk Level:  {result.risk_level.upper()}", f"Verdict:     {result.verdict}",
+             f"Threats:     {len(result.threats)}", f"Scan ID:     {result.scan_id}"]
+    if result.threats:
+        lines.append("\nThreats Detected:")
+        for t in result.threats:
+            lines.append(f"  [{t.severity.upper()}] {t.pattern}: {t.description}")
+    if result.ai_analysis:
+        ai = result.ai_analysis
+        lines += ["\nClaude AI Analysis:",
+                  f"  Verdict:    {ai.get('verdict', 'N/A')}",
+                  f"  Confidence: {ai.get('confidence', 0)}%",
+                  f"  Summary:    {ai.get('summary_en', 'N/A')}"]
+    lines.append("")
+    return "\n".join(lines)
 
-    console.print(
-        Panel(
-            banner_text,
-            border_style="bright_cyan",
-            padding=(1, 4),
-            subtitle="[dim]Protecting AI from hidden threats[/dim]",
-        )
-    )
-    console.print()
 
+def main() -> None:
+    parser = argparse.ArgumentParser(prog="aegisml", description="AegisML — AI Model Security Scanner")
+    sub = parser.add_subparsers(dest="command")
 
-def _print_result(result: InspectorResult, file_path: str) -> None:
-    """Render inspection results as a Rich table."""
-    color, marker = SEVERITY_STYLE.get(result.severity, ("white", "[?]"))
+    scan_p = sub.add_parser("scan", help="Scan a model file or directory")
+    scan_p.add_argument("path", help="Path to model file or directory")
+    scan_p.add_argument("--format", choices=["text", "json", "summary"], default="text")
+    scan_p.add_argument("--output", "-o", help="Output file path")
+    scan_p.add_argument("--api-url", help="AegisML API URL")
+    scan_p.add_argument("--api-key", help="AegisML API key")
+    scan_p.add_argument("--anthropic-key", help="Anthropic API key")
+    scan_p.add_argument("--fail-on-critical", action="store_true", default=True)
+    scan_p.add_argument("--fail-on-dangerous", action="store_true", default=False)
+    scan_p.add_argument("--quiet", "-q", action="store_true")
 
-    # ── Summary panel ────────────────────────────────────────────
-    summary = Text()
-    summary.append("File:     ", style="bold")
-    summary.append(f"{file_path}\n")
-    summary.append("Score:    ", style="bold")
-    summary.append(f"{result.risk_score:.1f} / 100\n", style=f"bold {color}")
-    summary.append("Severity: ", style="bold")
-    summary.append(f"{marker}  {result.severity.upper()}", style=f"bold {color}")
+    sub.add_parser("version", help="Show version")
 
-    console.print(
-        Panel(summary, title="[bold]Scan Result[/bold]", border_style=color)
-    )
+    args = parser.parse_args()
 
-    # ── Findings table ───────────────────────────────────────────
-    if not result.findings:
-        console.print("[green]No findings -- model file appears clean.[/green]")
+    if args.command == "version":
+        from aegisml import __version__
+        print(f"AegisML v{__version__}")
         return
 
-    table = Table(
-        title="Findings",
-        show_lines=True,
-        border_style="dim",
-        header_style="bold magenta",
+    if args.command != "scan":
+        parser.print_help()
+        return
+
+    scanner = AegisML(
+        api_url=getattr(args, "api_url", None),
+        api_key=getattr(args, "api_key", None),
+        anthropic_api_key=getattr(args, "anthropic_key", None),
     )
-    table.add_column("#", justify="right", style="dim", width=4)
-    table.add_column("Type", style="cyan", min_width=18)
-    table.add_column("Severity", justify="center", min_width=12)
-    table.add_column("Detail", ratio=1)
 
-    for idx, finding in enumerate(result.findings, start=1):
-        f_color, f_marker = SEVERITY_STYLE.get(
-            finding.get("severity", "clean"), ("white", "[?]")
-        )
-        table.add_row(
-            str(idx),
-            finding.get("type", "unknown"),
-            f"[{f_color}]{f_marker}  {finding.get('severity', 'unknown').upper()}[/{f_color}]",
-            finding.get("detail", ""),
-        )
+    path = Path(args.path)
+    results: List[ScanResult] = []
 
-    console.print(table)
-
-
-# ── CLI definition ───────────────────────────────────────────────
-
-@click.group()
-@click.version_option(version=__version__, prog_name="aegisml")
-def cli() -> None:
-    """AegisML -- AI Model Malware Inspector."""
-
-
-@cli.command()
-@click.argument("file_path", type=click.Path(exists=False))
-def scan(file_path: str) -> None:
-    """Scan an AI model file for malware and suspicious patterns.
-
-    FILE_PATH is the path to the model file to inspect.
-    """
-    _print_banner()
-
-    path = Path(file_path)
-
-    if not path.exists():
-        console.print(f"[bold red]Error:[/bold red] File not found: {file_path}")
-        raise SystemExit(1)
-
-    # Determine inspector based on file extension
-    suffix = path.suffix.lower()
-    fmt_entry = FORMAT_REGISTRY.get(suffix)
-
-    if fmt_entry is not None:
-        inspector_cls = fmt_entry["inspector_cls"]
-        console.print(f"[dim]Inspecting {fmt_entry['label']} file...[/dim]\n")
-        inspector = inspector_cls()
+    if path.is_dir():
+        if not args.quiet: print(f"🔍 Scanning directory: {path}")
+        results = scanner.scan_directory(path)
     else:
-        supported = ", ".join(sorted(FORMAT_REGISTRY.keys()))
-        console.print(
-            f"[bold yellow]Warning:[/bold yellow] Unsupported file extension "
-            f"'{suffix}'. Supported: {supported}\n"
-            f"Attempting GGUF inspection as fallback.\n"
-        )
-        inspector = GGUFInspector()
+        if not args.quiet: print(f"🔍 Scanning: {path.name}")
+        results = [scanner.scan(path)]
 
-    result = inspector.inspect(file_path)
-    _print_result(result, file_path)
+    if args.format == "json":
+        output = (json.dumps([r.to_dict() for r in results], ensure_ascii=False, indent=2)
+                  if len(results) > 1 else results[0].to_json())
+    elif args.format == "summary":
+        lines = []
+        for r in results:
+            icon = "✅" if r.risk_score < 30 else "⚠️" if r.risk_score < 60 else "🚨"
+            lines.append(f"{icon} {r.filename}: {r.risk_score:.0f}/100 ({r.risk_level}) — {len(r.threats)} threats")
+        output = "\n".join(lines)
+    else:
+        output = "\n".join(format_result(r) for r in results)
 
-    # Exit with non-zero code if threats detected
-    if result.severity in ("malicious", "critical"):
-        raise SystemExit(2)
+    if getattr(args, "output", None):
+        with open(args.output, "w", encoding="utf-8") as f:
+            f.write(output)
+        if not args.quiet: print(f"✅ Results saved to: {args.output}")
+    else:
+        print(output)
 
-
-@cli.command("version")
-def version_cmd() -> None:
-    """Print the AegisML version."""
-    _print_banner()
-
-
-@cli.command("help-formats")
-def help_formats() -> None:
-    """Show a table of all supported model file formats."""
-    _print_banner()
-
-    table = Table(
-        title="Supported Model Formats",
-        show_lines=True,
-        border_style="bright_cyan",
-        header_style="bold magenta",
-        title_style="bold cyan",
-    )
-    table.add_column("Extension", style="bold green", min_width=14)
-    table.add_column("Format", style="white", min_width=30)
-    table.add_column("Status", justify="center", min_width=14)
-    table.add_column("Risk Level", min_width=30)
-
-    for ext, info in FORMAT_REGISTRY.items():
-        table.add_row(ext, info["label"], info["status"], info["risk_note"])
-
-    console.print(table)
-    console.print(
-        "\n[dim]Use [bold]aegisml scan <file>[/bold] to inspect a model file.[/dim]"
-    )
+    exit_code = 0
+    for r in results:
+        if args.fail_on_critical and r.risk_level == "critical": exit_code = 1
+        if args.fail_on_dangerous and r.risk_level in ["malicious", "critical"]: exit_code = 1
+    sys.exit(exit_code)
 
 
 if __name__ == "__main__":
-    cli()
+    main()

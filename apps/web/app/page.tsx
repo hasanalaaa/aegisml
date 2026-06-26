@@ -60,6 +60,11 @@ const CONTENT = {
     errFormat: (fmts: string) => `الصيغة غير مدعومة. يدعم AegisML: ${fmts}`,
     errSize: "حجم الملف كبير جداً. الحد الأقصى 500MB.",
     errConn: "فشل الاتصال بالـ Backend.",
+    scanModeFile: "📁 رفع ملف",
+    scanModeUrl: "🔗 رابط HuggingFace",
+    urlPlaceholder: "https://huggingface.co/.../model.gguf",
+    urlHint: "يدعم روابط HuggingFace المباشرة — لا روابط الصفحة",
+    errUrl: "الرجاء إدخال رابط HuggingFace صحيح",
   },
   en: {
     dir: "ltr" as const,
@@ -115,6 +120,11 @@ const CONTENT = {
     errFormat: (fmts: string) => `Format not supported. AegisML supports: ${fmts}`,
     errSize: "File too large. Maximum size is 500MB.",
     errConn: "Failed to connect to Backend.",
+    scanModeFile: "📁 Upload File",
+    scanModeUrl: "🔗 HuggingFace URL",
+    urlPlaceholder: "https://huggingface.co/.../model.gguf",
+    urlHint: "Supports direct HuggingFace file URLs — not page links",
+    errUrl: "Please enter a valid HuggingFace URL",
   },
 };
 
@@ -124,6 +134,8 @@ export default function HomePage() {
   const [dragOver, setDragOver] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [lang, setLang] = useState<"ar" | "en">("ar");
+  const [scanMode, setScanMode] = useState<"file" | "url">("file");
+  const [urlInput, setUrlInput] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const t = CONTENT[lang];
@@ -143,24 +155,52 @@ export default function HomePage() {
   }
 
   async function handleScan() {
-    if (!file || scanning) return;
-    setScanning(true);
-    setUploadError(null);
-    const formData = new FormData();
-    formData.append("file", file);
-    const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-    try {
-      const res = await fetch(`${API}/api/v1/scan/file`, { method: "POST", body: formData });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || `Error ${res.status}`);
+    if (scanMode === "file") {
+      if (!file || scanning) return;
+      setScanning(true);
+      setUploadError(null);
+      const formData = new FormData();
+      formData.append("file", file);
+      const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      try {
+        const res = await fetch(`${API}/api/v1/scan/file`, { method: "POST", body: formData });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || `Error ${res.status}`);
+        }
+        const data = await res.json();
+        window.location.href = `/scan/${data.scan_id}`;
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Unknown error";
+        setUploadError(`${t.errConn}: ${msg}`);
+        setScanning(false);
       }
-      const data = await res.json();
-      window.location.href = `/scan/${data.scan_id}`;
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Unknown error";
-      setUploadError(`${t.errConn}: ${msg}`);
-      setScanning(false);
+    } else {
+      if (!urlInput.trim() || scanning) return;
+      if (!urlInput.includes("huggingface.co") && !urlInput.includes("hf.co")) {
+        setUploadError(t.errUrl);
+        return;
+      }
+      setScanning(true);
+      setUploadError(null);
+      const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      try {
+        const res = await fetch(`${API}/api/v1/scan/url`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: urlInput.trim() }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || `Error ${res.status}`);
+        }
+        const data = await res.json();
+        window.location.href = `/scan/${data.scan_id}`;
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Unknown error";
+        setUploadError(`${t.errConn}: ${msg}`);
+        setScanning(false);
+      }
     }
   }
 
@@ -216,6 +256,15 @@ export default function HomePage() {
               </button>
             ))}
           </div>
+          <Link href="/dashboard" style={{ color: "#A8A8C4", textDecoration: "none", fontSize: 13, padding: "6px 14px", border: "1px solid #2A2A3E", borderRadius: 8 }}>
+            📊 Dashboard
+          </Link>
+          <Link href="/docs" style={{ color: "#A8A8C4", textDecoration: "none", fontSize: 13, padding: "6px 14px", border: "1px solid #2A2A3E", borderRadius: 8 }}>
+            {lang === "ar" ? "📖 توثيق الـ API" : "📖 API Docs"}
+          </Link>
+          <Link href="/threats" style={{ color: "#A8A8C4", textDecoration: "none", fontSize: 13, padding: "6px 14px", border: "1px solid #2A2A3E", borderRadius: 8 }}>
+            {lang === "ar" ? "⚡ التهديدات" : "⚡ Threats"}
+          </Link>
           <Link
             href="https://github.com/hasanalaaa/aegisml"
             target="_blank"
@@ -268,55 +317,148 @@ export default function HomePage() {
         </p>
 
         {/* SCAN BOX */}
-        <div id="scan-section" style={{ maxWidth: 560, margin: "0 auto" }}>
-          <div
-            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFileSelect(f); }}
-            onClick={() => !scanning && fileInputRef.current?.click()}
-            style={{
-              border: `2px dashed ${dragOver ? "#C9A84C" : file ? "#2ECC71" : uploadError ? "#E74C3C" : "#2A2A3E"}`,
-              borderRadius: 16, padding: "40px 28px", textAlign: "center",
-              cursor: scanning ? "not-allowed" : "pointer",
-              background: dragOver ? "rgba(201,168,76,0.06)" : file ? "rgba(46,204,113,0.04)" : "rgba(255,255,255,0.01)",
-              transition: "all 0.25s ease", marginBottom: 14, position: "relative", overflow: "hidden",
-            }}
-          >
-            {scanning && (
-              <div style={{
-                position: "absolute", left: 0, top: 0, height: 2,
-                background: "linear-gradient(90deg, transparent, #C9A84C, transparent)",
-                animation: "shimmer 1.2s infinite", backgroundSize: "200% 100%", width: "100%",
-              }} />
-            )}
-            <input ref={fileInputRef} type="file" accept={SUPPORTED_FORMATS.join(",")} style={{ display: "none" }}
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); }} />
-            {scanning ? (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
-                <div style={{ width: 44, height: 44, border: "3px solid #C9A84C22", borderTop: "3px solid #C9A84C", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-                <p style={{ color: "#C9A84C", fontWeight: 700, margin: 0 }}>{t.scanningMsg}</p>
-                <p style={{ color: "#555577", fontSize: 13, margin: 0 }}>{file?.name}</p>
-              </div>
-            ) : file ? (
-              <div>
-                <div style={{ fontSize: 36, marginBottom: 10 }}>📦</div>
-                <p style={{ color: "#2ECC71", fontWeight: 700, fontSize: 16, margin: "0 0 4px" }}>✓ {file.name}</p>
-                <p style={{ color: "#666688", fontSize: 13, margin: "0 0 12px" }}>{formatFileSize(file.size)}</p>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setFile(null); setUploadError(null); }}
-                  style={{ background: "transparent", border: "1px solid #2A2A3E", color: "#A8A8C4", padding: "4px 14px", borderRadius: 6, cursor: "pointer", fontSize: 12 }}
-                >
-                  {t.changeFile}
-                </button>
-              </div>
-            ) : (
-              <div>
-                <div style={{ fontSize: 44, marginBottom: 14, opacity: 0.5 }}>⬡</div>
-                <p style={{ color: "#D0D0E8", fontWeight: 600, margin: "0 0 8px", fontSize: 16 }}>{t.dropTitle}</p>
-                <p style={{ color: "#555577", margin: 0, fontSize: 13 }}>{t.dropFormats}</p>
-              </div>
-            )}
+        <div id="scan-section" style={{ maxWidth: 600, margin: "0 auto" }}>
+
+          {/* Mode Toggle */}
+          <div style={{
+            display: "flex",
+            background: "#0D0D18",
+            border: "1px solid #1E1E2E",
+            borderRadius: 12,
+            padding: 4,
+            marginBottom: 16,
+            gap: 4,
+          }}>
+            {(["file", "url"] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => {
+                  setScanMode(mode);
+                  setFile(null);
+                  setUrlInput("");
+                  setUploadError(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: "10px 16px",
+                  borderRadius: 10,
+                  border: "none",
+                  background: scanMode === mode
+                    ? "linear-gradient(135deg, #C9A84C22, #E4C46B11)"
+                    : "transparent",
+                  color: scanMode === mode ? "#C9A84C" : "#555577",
+                  fontWeight: 700,
+                  fontSize: 14,
+                  cursor: "pointer",
+                  transition: "all 0.25s ease",
+                  borderBottom: scanMode === mode
+                    ? "2px solid #C9A84C"
+                    : "2px solid transparent",
+                }}
+              >
+                {mode === "file" ? t.scanModeFile : t.scanModeUrl}
+              </button>
+            ))}
           </div>
+
+          {scanMode === "file" ? (
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFileSelect(f); }}
+              onClick={() => !scanning && fileInputRef.current?.click()}
+              style={{
+                border: `2px dashed ${dragOver ? "#C9A84C" : file ? "#2ECC71" : uploadError ? "#E74C3C" : "#2A2A3E"}`,
+                borderRadius: 16, padding: "40px 28px", textAlign: "center",
+                cursor: scanning ? "not-allowed" : "pointer",
+                background: dragOver ? "rgba(201,168,76,0.06)" : file ? "rgba(46,204,113,0.04)" : "rgba(255,255,255,0.01)",
+                transition: "all 0.25s ease", marginBottom: 14, position: "relative", overflow: "hidden",
+              }}
+            >
+              {scanning && (
+                <div style={{
+                  position: "absolute", left: 0, top: 0, height: 2,
+                  background: "linear-gradient(90deg, transparent, #C9A84C, transparent)",
+                  animation: "shimmer 1.2s infinite", backgroundSize: "200% 100%", width: "100%",
+                }} />
+              )}
+              <input ref={fileInputRef} type="file" accept={SUPPORTED_FORMATS.join(",")} style={{ display: "none" }}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); }} />
+              {scanning ? (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+                  <div style={{ width: 44, height: 44, border: "3px solid #C9A84C22", borderTop: "3px solid #C9A84C", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                  <p style={{ color: "#C9A84C", fontWeight: 700, margin: 0 }}>{t.scanningMsg}</p>
+                  <p style={{ color: "#555577", fontSize: 13, margin: 0 }}>{file?.name}</p>
+                </div>
+              ) : file ? (
+                <div>
+                  <div style={{ fontSize: 36, marginBottom: 10 }}>📦</div>
+                  <p style={{ color: "#2ECC71", fontWeight: 700, fontSize: 16, margin: "0 0 4px" }}>✓ {file.name}</p>
+                  <p style={{ color: "#666688", fontSize: 13, margin: "0 0 12px" }}>{formatFileSize(file.size)}</p>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setFile(null); setUploadError(null); }}
+                    style={{ background: "transparent", border: "1px solid #2A2A3E", color: "#A8A8C4", padding: "4px 14px", borderRadius: 6, cursor: "pointer", fontSize: 12 }}
+                  >
+                    {t.changeFile}
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: 44, marginBottom: 14, opacity: 0.5 }}>⬡</div>
+                  <p style={{ color: "#D0D0E8", fontWeight: 600, margin: "0 0 8px", fontSize: 16 }}>{t.dropTitle}</p>
+                  <p style={{ color: "#555577", margin: 0, fontSize: 13 }}>{t.dropFormats}</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div
+              style={{
+                border: `2px dashed ${uploadError ? "#E74C3C" : "#2A2A3E"}`,
+                borderRadius: 16, padding: "40px 28px", textAlign: "center",
+                background: "rgba(255,255,255,0.01)",
+                marginBottom: 14, position: "relative", overflow: "hidden",
+              }}
+            >
+              {scanning && (
+                <div style={{
+                  position: "absolute", left: 0, top: 0, height: 2,
+                  background: "linear-gradient(90deg, transparent, #C9A84C, transparent)",
+                  animation: "shimmer 1.2s infinite", backgroundSize: "200% 100%", width: "100%",
+                }} />
+              )}
+              {scanning ? (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+                  <div style={{ width: 44, height: 44, border: "3px solid #C9A84C22", borderTop: "3px solid #C9A84C", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                  <p style={{ color: "#C9A84C", fontWeight: 700, margin: 0 }}>{t.scanningMsg}</p>
+                  <p style={{ color: "#555577", fontSize: 13, margin: 0, wordBreak: "break-all" }}>{urlInput}</p>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: 44, marginBottom: 14, opacity: 0.5 }}>🔗</div>
+                  <input
+                    type="text"
+                    placeholder={t.urlPlaceholder}
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "14px 18px",
+                      borderRadius: 12,
+                      border: "1px solid #2A2A3E",
+                      background: "#0D0D18",
+                      color: "#F0F0F8",
+                      fontSize: 14,
+                      outline: "none",
+                      transition: "border-color 0.2s",
+                      marginBottom: 10,
+                      textAlign: "left",
+                    }}
+                  />
+                  <p style={{ color: "#555577", margin: 0, fontSize: 13 }}>{t.urlHint}</p>
+                </div>
+              )}
+            </div>
+          )}
 
           {uploadError && (
             <div style={{
@@ -330,12 +472,12 @@ export default function HomePage() {
 
           <button
             onClick={handleScan}
-            disabled={!file || scanning}
+            disabled={scanning || (scanMode === "file" ? !file : !urlInput.trim())}
             style={{
               width: "100%", padding: "15px", borderRadius: 12, fontSize: 16, fontWeight: 800, border: "none",
-              background: file && !scanning ? "linear-gradient(135deg, #C9A84C, #E4C46B)" : "#12121E",
-              color: file && !scanning ? "#0A0A0F" : "#333355",
-              cursor: file && !scanning ? "pointer" : "not-allowed",
+              background: (scanMode === "file" ? file : urlInput.trim()) && !scanning ? "linear-gradient(135deg, #C9A84C, #E4C46B)" : "#12121E",
+              color: (scanMode === "file" ? file : urlInput.trim()) && !scanning ? "#0A0A0F" : "#333355",
+              cursor: (scanMode === "file" ? file : urlInput.trim()) && !scanning ? "pointer" : "not-allowed",
               transition: "all 0.25s ease", letterSpacing: 0.5,
             }}
           >
