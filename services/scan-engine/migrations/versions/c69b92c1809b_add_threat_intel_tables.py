@@ -101,7 +101,7 @@ def upgrade() -> None:
                existing_type=sa.DATETIME(),
                server_default=None,
                nullable=False)
-        batch_op.drop_index('ix_scans_created_at')
+        pass  # Bypassed ghost index drop
         batch_op.drop_index('ix_scans_scan_id')
         batch_op.create_index(batch_op.f('ix_scans_scan_id'), ['scan_id'], unique=True)
 
