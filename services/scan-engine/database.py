@@ -31,7 +31,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy.pool import NullPool, QueuePool
+from sqlalchemy.pool import AsyncAdaptedQueuePool, NullPool
 
 logger = logging.getLogger("aegisml.database")
 
@@ -64,7 +64,7 @@ _engine_kwargs: dict = {
 if not _IS_SQLITE:
     _engine_kwargs.update(
         {
-            "poolclass": QueuePool,
+            "poolclass": AsyncAdaptedQueuePool,
             "pool_size": 10,
             "max_overflow": 20,
             "pool_recycle": 1800,
