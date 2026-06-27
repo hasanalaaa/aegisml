@@ -57,7 +57,10 @@ from cache import (
 from auth.models import User
 from auth.router import router as auth_router
 from routers.user_keys import router as keys_router
+from routers.threat_intel import router as threat_intel_router
 from auth.utils import get_current_user
+from threat_intel.scheduler import start_scheduler, shutdown_scheduler
+from threat_intel.ioc_database import check_hash
 from ai_providers.manager import AIProviderManager
 from database import (
     APIKey,
@@ -255,10 +258,12 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     except Exception as exc:
         logger.error(f"Non-blocking startup database initialization warning: {exc}")
 
+    start_scheduler()
     logger.info("AegisML v%s started", VERSION)
     yield
 
     # Shutdown
+    shutdown_scheduler()
     await close_redis()
     logger.info("AegisML shutdown complete")
 
@@ -274,6 +279,7 @@ app = FastAPI(
 
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(keys_router)
+app.include_router(threat_intel_router)
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -533,15 +539,50 @@ async def _process_scan(
         })
         await asyncio.sleep(0.5)
 
-        await manager.send_progress(scan_id, {
-            "stage": "signature_scan", "progress": 30, "message": "البحث عن الأنماط الخبيثة...", "threat_count": 0, "timestamp": datetime.now(timezone.utc).isoformat()
-        })
-        
         if not temp_path:
             raise ValueError("No file provided for scanning.")
 
-        result = await _run_inspector(temp_path, filename, scan_id)
-        threat_count = len(result.get("threats", []))
+        # Compute hash early for IOC check
+        file_size = os.path.getsize(temp_path)
+        sha = hashlib.sha256()
+        with open(temp_path, "rb") as fh:
+            while True:
+                block = fh.read(8192)
+                if not block:
+                    break
+                sha.update(block)
+        file_hash = sha.hexdigest()
+
+        # Check IOC database
+        ioc_hit = await check_hash(file_hash)
+        if ioc_hit:
+            result = {
+                "scan_id": scan_id,
+                "filename": filename,
+                "risk_score": 100,
+                "risk_level": "critical",
+                "threats": [{
+                    "pattern": "IOC-BLACKLIST",
+                    "severity": "critical",
+                    "description": "This file is known to be malicious according to the global IOC database.",
+                    "location": filename,
+                    "category": "known_malware"
+                }],
+                "metadata": {
+                    "file_size": file_size,
+                    "extension": ext,
+                    "threats_found": 1,
+                    "ioc_hit": True
+                }
+            }
+            threat_count = 1
+        else:
+            await manager.send_progress(scan_id, {
+                "stage": "signature_scan", "progress": 30, "message": "البحث عن الأنماط الخبيثة...", "threat_count": 0, "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+            
+            result = await _run_inspector(temp_path, filename, scan_id)
+            threat_count = len(result.get("threats", []))
 
         await manager.send_progress(scan_id, {
             "stage": "ai_analysis", "progress": 70, "message": "تحليل الذكاء الاصطناعي...", "threat_count": threat_count, "timestamp": datetime.now(timezone.utc).isoformat()
@@ -588,17 +629,6 @@ async def _process_scan(
             result["source_url"] = source_url
 
         await set_cached_scan(scan_id, result)
-
-        file_size = os.path.getsize(temp_path)
-        file_hash = ""
-        sha = hashlib.sha256()
-        with open(temp_path, "rb") as fh:
-            while True:
-                block = fh.read(8192)
-                if not block:
-                    break
-                sha.update(block)
-        file_hash = sha.hexdigest()
 
         async with AsyncSessionLocal() as db:
             record = ScanRecord(

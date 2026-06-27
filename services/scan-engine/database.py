@@ -216,6 +216,33 @@ class APIKey(Base):
     last_used: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class CVERecord(Base):
+    __tablename__ = "cve_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    cve_id: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    cvss_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    published_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    affected_tech: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
+class IOCRecord(Base):
+    __tablename__ = "ioc_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    file_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    severity: Mapped[str] = mapped_column(String(20), default="malicious")
+    reporter_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    reported_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
 # ══════════════════════════════════════════════════════════════════════
 # INITIALISATION
 # ══════════════════════════════════════════════════════════════════════
