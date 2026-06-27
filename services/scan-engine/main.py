@@ -4,7 +4,7 @@ AegisML Scan Engine — FastAPI Backend v2.0.0
 Production-grade API for scanning AI model files for malware, backdoors,
 and security vulnerabilities.  Backed by PostgreSQL + Redis.
 """
-from __future__ import annotations
+
 
 import hashlib
 import json
