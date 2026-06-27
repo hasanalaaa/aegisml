@@ -1,170 +1,395 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import String, Integer, Float, DateTime, Text, Boolean, JSON, select, func
-from datetime import datetime, timezone
+"""
+AegisML Database Module — PostgreSQL (asyncpg) + Redis
+
+Provides:
+  - Async SQLAlchemy engine with connection pooling & retry logic
+  - Redis client with graceful fallback
+  - ORM models for scans, threat patterns, and API keys
+  - Session management and DB initialization utilities
+"""
+from __future__ import annotations
+
+import logging
 import os
+from datetime import datetime, timezone
+from typing import AsyncGenerator, Optional
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./aegisml.db")
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    Integer,
+    String,
+    Text,
+    func,
+    select,
+)
+from sqlalchemy.dialects.postgresql import JSON
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.pool import NullPool, QueuePool
 
-engine = create_async_engine(DATABASE_URL, echo=False)
-AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
+logger = logging.getLogger("aegisml.database")
+
+# ── Environment ──────────────────────────────────────────────────────
+
+_raw_db_url: str = os.getenv(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/aegisml"
+)
+REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+# Railway provides `postgres://` — SQLAlchemy asyncpg requires `postgresql+asyncpg://`
+_DB_URL: str = _raw_db_url
+if _DB_URL.startswith("postgres://"):
+    _DB_URL = _DB_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+elif _DB_URL.startswith("postgresql://") and "+asyncpg" not in _DB_URL:
+    _DB_URL = _DB_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+DATABASE_URL: str = _DB_URL
+
+# Detect if we're using SQLite (for local development compatibility)
+_IS_SQLITE: bool = DATABASE_URL.startswith("sqlite")
+
+# ── Engine ───────────────────────────────────────────────────────────
+
+_engine_kwargs: dict = {
+    "echo": False,
+    "pool_pre_ping": True,
+}
+
+if not _IS_SQLITE:
+    _engine_kwargs.update(
+        {
+            "poolclass": QueuePool,
+            "pool_size": 10,
+            "max_overflow": 20,
+            "pool_recycle": 1800,
+            "connect_args": {
+                "server_settings": {"application_name": "aegisml"},
+                "command_timeout": 30,
+            },
+        }
+    )
+else:
+    # SQLite does not support pool configuration beyond NullPool
+    _engine_kwargs["poolclass"] = NullPool
+
+engine = create_async_engine(DATABASE_URL, **_engine_kwargs)
+
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
+
+# ── Redis Client ─────────────────────────────────────────────────────
+
+try:
+    import redis.asyncio as aioredis
+
+    _HAS_REDIS = True
+except ImportError:
+    aioredis = None  # type: ignore[assignment]
+    _HAS_REDIS = False
+
+redis_client: Optional[object] = None  # Will be aioredis.Redis | None
+
+
+async def init_redis() -> bool:
+    """Initialise the Redis connection.  Returns True on success."""
+    global redis_client
+
+    if not _HAS_REDIS:
+        logger.warning("redis package not installed — caching disabled")
+        return False
+
+    try:
+        redis_client = aioredis.from_url(
+            REDIS_URL,
+            encoding="utf-8",
+            decode_responses=True,
+            socket_connect_timeout=5,
+            socket_timeout=5,
+            retry_on_timeout=True,
+            max_connections=20,
+        )
+        await redis_client.ping()  # type: ignore[union-attr]
+        logger.info("Redis connected at %s", REDIS_URL.split("@")[-1])
+        return True
+    except Exception as exc:
+        logger.warning("Redis connection failed (%s) — caching disabled", exc)
+        redis_client = None
+        return False
+
+
+async def close_redis() -> None:
+    """Gracefully close the Redis connection pool."""
+    global redis_client
+    if redis_client is not None:
+        try:
+            await redis_client.aclose()  # type: ignore[union-attr]
+        except Exception as exc:
+            logger.debug("Redis close error: %s", exc)
+        finally:
+            redis_client = None
+
+
+async def check_redis_health() -> bool:
+    """Non-throwing health-check for Redis."""
+    if redis_client is None:
+        return False
+    try:
+        return await redis_client.ping()  # type: ignore[union-attr]
+    except Exception:
+        return False
+
+
+async def check_db_health() -> bool:
+    """Non-throwing health-check for PostgreSQL."""
+    try:
+        async with AsyncSessionLocal() as session:
+            await session.execute(select(func.now()))
+        return True
+    except Exception:
+        return False
+
+
+# ══════════════════════════════════════════════════════════════════════
+# ORM MODELS
+# ══════════════════════════════════════════════════════════════════════
 
 
 class Base(DeclarativeBase):
+    """Declarative base for all ORM models."""
+
     pass
 
 
 class ScanRecord(Base):
+    """Persisted result of a model-file security scan."""
+
     __tablename__ = "scans"
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    scan_id: Mapped[str] = mapped_column(String(36), unique=True, index=True, nullable=False)
+    scan_id: Mapped[str] = mapped_column(
+        String(36), unique=True, index=True, nullable=False
+    )
     filename: Mapped[str] = mapped_column(String(500), nullable=False)
-    file_size: Mapped[int] = mapped_column(Integer, nullable=True)
-    file_extension: Mapped[str] = mapped_column(String(20), nullable=True)
+    file_size: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    file_extension: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    file_hash: Mapped[Optional[str]] = mapped_column(
+        String(64), nullable=True, index=True
+    )
     risk_score: Mapped[float] = mapped_column(Float, default=0.0)
     risk_level: Mapped[str] = mapped_column(String(20), default="clean")
-    threats: Mapped[dict] = mapped_column(JSON, default=list)
-    metadata_info: Mapped[dict] = mapped_column(JSON, default=dict)
-    ai_verdict: Mapped[str] = mapped_column(String(20), nullable=True)
-    ai_confidence: Mapped[int] = mapped_column(Integer, nullable=True)
-    ai_summary_en: Mapped[str] = mapped_column(Text, nullable=True)
-    ai_summary_ar: Mapped[str] = mapped_column(Text, nullable=True)
-    ai_key_risks: Mapped[dict] = mapped_column(JSON, default=list)
-    ai_recommendation_en: Mapped[str] = mapped_column(Text, nullable=True)
-    ai_recommendation_ar: Mapped[str] = mapped_column(Text, nullable=True)
+    threats: Mapped[Optional[dict]] = mapped_column(JSON, default=list)
+    metadata_info: Mapped[Optional[dict]] = mapped_column(JSON, default=dict)
+
+    # AI analysis fields
+    ai_verdict: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    ai_confidence: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    ai_summary_en: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    ai_summary_ar: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    ai_key_risks: Mapped[Optional[dict]] = mapped_column(JSON, default=list)
+    ai_recommendation_en: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    ai_recommendation_ar: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Source tracking
     source_type: Mapped[str] = mapped_column(String(20), default="upload")
-    source_url: Mapped[str] = mapped_column(String(1000), nullable=True)
-    ip_address: Mapped[str] = mapped_column(String(45), nullable=True)
-    user_agent: Mapped[str] = mapped_column(String(500), nullable=True)
+    source_url: Mapped[Optional[str]] = mapped_column(String(2000), nullable=True)
+    ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
+    user_agent: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
     is_public: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
 
 
 class ThreatPattern(Base):
+    """Known malicious pattern that the scanner searches for."""
+
     __tablename__ = "threat_patterns"
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     pattern: Mapped[str] = mapped_column(String(200), unique=True, nullable=False)
     severity: Mapped[str] = mapped_column(String(20), nullable=False)
-    category: Mapped[str] = mapped_column(String(50), nullable=True)
-    description_en: Mapped[str] = mapped_column(Text, nullable=True)
-    description_ar: Mapped[str] = mapped_column(Text, nullable=True)
+    category: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    description_en: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description_ar: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     times_detected: Mapped[int] = mapped_column(Integer, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
 
 
 class APIKey(Base):
+    """User-issued API key (only the hash is stored)."""
+
     __tablename__ = "api_keys"
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    key_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    key_hash: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False, index=True
+    )
     key_prefix: Mapped[str] = mapped_column(String(12), nullable=False)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
-    email: Mapped[str] = mapped_column(String(200), nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     scans_used: Mapped[int] = mapped_column(Integer, default=0)
     scans_limit: Mapped[int] = mapped_column(Integer, default=500)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
-    last_used: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    last_used: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
 
-async def init_db():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+# ══════════════════════════════════════════════════════════════════════
+# INITIALISATION
+# ══════════════════════════════════════════════════════════════════════
 
 
-async def get_db():
+async def init_db() -> None:
+    """Create all tables if they do not exist.
+
+    In production, prefer running Alembic migrations instead.
+    """
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database tables verified / created")
+    except Exception as exc:
+        logger.error("Failed to initialise database: %s", exc)
+        raise
+
+
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    """FastAPI dependency that yields a scoped async session."""
     async with AsyncSessionLocal() as session:
         try:
             yield session
+        except Exception:
+            await session.rollback()
+            raise
         finally:
             await session.close()
 
 
-async def seed_threat_patterns(session: AsyncSession):
-    """تعبئة أنماط التهديد الأولية إذا لم تكن موجودة."""
+async def seed_threat_patterns(session: AsyncSession) -> None:
+    """Populate default threat patterns if the table is empty."""
     existing = await session.scalar(select(func.count(ThreatPattern.id)))
     if existing and existing > 0:
         return
 
-    patterns = [
+    defaults = [
         ThreatPattern(
-            pattern="os.system", severity="critical", category="code_execution",
+            pattern="os.system",
+            severity="critical",
+            category="code_execution",
             description_en="Executes arbitrary OS commands — highest risk",
             description_ar="ينفذ أوامر نظام التشغيل — أعلى درجات الخطر",
         ),
         ThreatPattern(
-            pattern="subprocess.run", severity="critical", category="code_execution",
+            pattern="subprocess.run",
+            severity="critical",
+            category="code_execution",
             description_en="Spawns external processes with potential privilege escalation",
             description_ar="يشغل عمليات خارجية مع احتمال رفع الصلاحيات",
         ),
         ThreatPattern(
-            pattern="eval", severity="critical", category="code_execution",
+            pattern="eval",
+            severity="critical",
+            category="code_execution",
             description_en="Dynamic code evaluation — can execute any Python code",
             description_ar="تقييم ديناميكي للكود — يمكنه تنفيذ أي كود Python",
         ),
         ThreatPattern(
-            pattern="exec", severity="critical", category="code_execution",
+            pattern="exec",
+            severity="critical",
+            category="code_execution",
             description_en="Executes compiled Python code objects",
             description_ar="يُنفِّذ كائنات كود Python المُجمَّعة",
         ),
         ThreatPattern(
-            pattern="__reduce__", severity="critical", category="deserialization",
+            pattern="__reduce__",
+            severity="critical",
+            category="deserialization",
             description_en="Pickle hook that executes code during deserialization",
             description_ar="خطاف Pickle يُنفِّذ كوداً أثناء إلغاء التسلسل",
         ),
         ThreatPattern(
-            pattern="pickle.loads", severity="high", category="deserialization",
+            pattern="pickle.loads",
+            severity="high",
+            category="deserialization",
             description_en="Loads arbitrary Python objects — can trigger code execution",
             description_ar="يحمّل كائنات Python عشوائية — يمكنه تشغيل الكود",
         ),
         ThreatPattern(
-            pattern="ctypes", severity="critical", category="system_access",
+            pattern="ctypes",
+            severity="critical",
+            category="system_access",
             description_en="Low-level C library access — bypasses Python safety",
             description_ar="وصول مستوى منخفض لمكتبات C — يتجاوز أمان Python",
         ),
         ThreatPattern(
-            pattern="socket", severity="high", category="network",
+            pattern="socket",
+            severity="high",
+            category="network",
             description_en="Network socket creation — enables data exfiltration",
             description_ar="إنشاء مقبس شبكي — يُمكِّن تسريب البيانات",
         ),
         ThreatPattern(
-            pattern="import os", severity="high", category="system_access",
+            pattern="import os",
+            severity="high",
+            category="system_access",
             description_en="Imports OS module for system operations access",
             description_ar="استيراد وحدة النظام للوصول لعمليات النظام",
         ),
         ThreatPattern(
-            pattern="base64", severity="medium", category="obfuscation",
+            pattern="base64",
+            severity="medium",
+            category="obfuscation",
             description_en="Often used to encode and hide malicious payloads",
             description_ar="يُستخدم غالباً لتشفير وإخفاء الحمولات الخبيثة",
         ),
         ThreatPattern(
-            pattern="requests", severity="medium", category="network",
+            pattern="requests",
+            severity="medium",
+            category="network",
             description_en="HTTP library — can send data to external servers",
             description_ar="مكتبة HTTP — يمكنها إرسال بيانات لخوادم خارجية",
         ),
         ThreatPattern(
-            pattern="shutil", severity="medium", category="file_operations",
+            pattern="shutil",
+            severity="medium",
+            category="file_operations",
             description_en="File system operations including copy, move, delete",
             description_ar="عمليات نظام الملفات شاملة النسخ والنقل والحذف",
         ),
         ThreatPattern(
-            pattern="__import__", severity="high", category="code_execution",
+            pattern="__import__",
+            severity="high",
+            category="code_execution",
             description_en="Dynamic module importing — can load any installed package",
             description_ar="استيراد ديناميكي للوحدات — يمكنه تحميل أي حزمة مثبتة",
         ),
         ThreatPattern(
-            pattern="urllib", severity="medium", category="network",
+            pattern="urllib",
+            severity="medium",
+            category="network",
             description_en="URL handling library with HTTP request capabilities",
             description_ar="مكتبة معالجة الروابط مع قدرات طلب HTTP",
         ),
     ]
 
-    for p in patterns:
+    for p in defaults:
         session.add(p)
     await session.commit()
+    logger.info("Seeded %d default threat patterns", len(defaults))
