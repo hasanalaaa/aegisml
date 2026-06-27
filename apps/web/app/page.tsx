@@ -2,6 +2,8 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
+import { useLiveStats } from "../hooks/useLiveStats";
+import { AIProviderSelector } from "../components/AIProviderSelector";
 
 const SUPPORTED_FORMATS = [".gguf", ".safetensors", ".pkl", ".pickle", ".pt", ".pth"];
 
@@ -129,6 +131,7 @@ const CONTENT = {
 };
 
 export default function HomePage() {
+  const liveStats = useLiveStats();
   const [file, setFile] = useState<File | null>(null);
   const [scanning, setScanning] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -137,6 +140,10 @@ export default function HomePage() {
   const [scanMode, setScanMode] = useState<"file" | "url">("file");
   const [urlInput, setUrlInput] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [aiProvider, setAiProvider] = useState("");
+  const [aiModel, setAiModel] = useState("");
+  const [apiKey, setApiKey] = useState<string | null>(null);
 
   const t = CONTENT[lang];
 
@@ -161,6 +168,9 @@ export default function HomePage() {
       setUploadError(null);
       const formData = new FormData();
       formData.append("file", file);
+      if (aiProvider) formData.append("ai_provider", aiProvider);
+      if (aiModel) formData.append("ai_model", aiModel);
+      if (apiKey) formData.append("api_key", apiKey);
       const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       try {
         const res = await fetch(`${API}/api/v1/scan/file`, { method: "POST", body: formData });
@@ -188,7 +198,12 @@ export default function HomePage() {
         const res = await fetch(`${API}/api/v1/scan/url`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: urlInput.trim() }),
+          body: JSON.stringify({ 
+            url: urlInput.trim(),
+            ai_provider: aiProvider || undefined,
+            ai_model: aiModel || undefined,
+            api_key: apiKey || undefined
+          }),
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
@@ -470,6 +485,16 @@ export default function HomePage() {
             </div>
           )}
 
+          <AIProviderSelector 
+            disabled={scanning}
+            onSelect={(prov, mod, key) => {
+              setAiProvider(prov);
+              setAiModel(mod);
+              setApiKey(key);
+            }} 
+          />
+          <div style={{ height: 16 }} />
+
           <button
             onClick={handleScan}
             disabled={scanning || (scanMode === "file" ? !file : !urlInput.trim())}
@@ -491,13 +516,22 @@ export default function HomePage() {
       <section style={{ borderTop: "1px solid #1A1A2E", borderBottom: "1px solid #1A1A2E" }}>
         <div style={{ ...sectionStyle, padding: "48px 24px" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
-            {t.stats.map((stat, i) => (
-              <div key={i} style={{ ...card, padding: "28px 20px", textAlign: "center" }}>
-                <p style={{ color: "#C9A84C", fontSize: 36, fontWeight: 900, margin: "0 0 6px", fontFamily: "monospace" }}>{stat.value}</p>
-                <p style={{ color: "#F0F0F8", fontSize: 15, fontWeight: 600, margin: "0 0 4px" }}>{stat.label}</p>
-                <p style={{ color: "#555577", fontSize: 12, margin: 0 }}>{stat.sub}</p>
-              </div>
-            ))}
+            <div style={{ ...card, padding: "28px 20px", textAlign: "center", position: "relative", overflow: "hidden" }}>
+              <p style={{ color: "#C9A84C", fontSize: 36, fontWeight: 900, margin: "0 0 6px", fontFamily: "monospace" }}>{liveStats?.totalScans ?? "-"}</p>
+              <p style={{ color: "#F0F0F8", fontSize: 15, fontWeight: 600, margin: "0 0 4px" }}>{lang === "ar" ? "إجمالي الفحوصات" : "Total Scans"}</p>
+              <p style={{ color: "#555577", fontSize: 12, margin: 0 }}>Powered by PostgreSQL</p>
+            </div>
+            <div style={{ ...card, padding: "28px 20px", textAlign: "center", position: "relative", overflow: "hidden" }}>
+              <p style={{ color: "#E74C3C", fontSize: 36, fontWeight: 900, margin: "0 0 6px", fontFamily: "monospace" }}>{liveStats?.threatsFound ?? "-"}</p>
+              <p style={{ color: "#F0F0F8", fontSize: 15, fontWeight: 600, margin: "0 0 4px" }}>{lang === "ar" ? "التهديدات المكتشفة" : "Threats Found"}</p>
+              <p style={{ color: "#555577", fontSize: 12, margin: 0 }}>Blocked Malicious Models</p>
+            </div>
+            <div style={{ ...card, padding: "28px 20px", textAlign: "center", position: "relative", overflow: "hidden" }}>
+              {liveStats?.activeScans ? <div style={{ position: "absolute", top: 12, right: 12, width: 8, height: 8, borderRadius: "50%", background: "#2ECC71", boxShadow: "0 0 8px #2ECC71", animation: "pulse 1.5s infinite" }} /> : null}
+              <p style={{ color: "#2ECC71", fontSize: 36, fontWeight: 900, margin: "0 0 6px", fontFamily: "monospace" }}>{liveStats?.activeScans ?? 0}</p>
+              <p style={{ color: "#F0F0F8", fontSize: 15, fontWeight: 600, margin: "0 0 4px" }}>{lang === "ar" ? "فحوصات نشطة الآن" : "Active Scans Now"}</p>
+              <p style={{ color: "#555577", fontSize: 12, margin: 0 }}>Live WebSocket Stream</p>
+            </div>
           </div>
         </div>
       </section>

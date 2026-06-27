@@ -30,6 +30,7 @@ if config.config_file_name is not None:
 
 # ── Import ORM metadata ────────────────────────────────────────────
 from database import Base  # noqa: E402
+import auth.models  # noqa: E402
 
 target_metadata = Base.metadata
 
@@ -71,6 +72,7 @@ def do_run_migrations(connection) -> None:  # type: ignore[no-untyped-def]
         target_metadata=target_metadata,
         compare_type=True,
         compare_server_default=True,
+        render_as_batch=True,
     )
     with context.begin_transaction():
         context.run_migrations()

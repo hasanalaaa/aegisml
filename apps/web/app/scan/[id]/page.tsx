@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import ScanProgress from "../../../components/ScanProgress";
 
 interface Threat {
   pattern: string;
@@ -158,12 +159,18 @@ export default function ScanResultPage() {
     const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
     try {
       const r = await fetch(`${API}/api/v1/scan/${scanId}`);
-      if (!r.ok) throw new Error(r.status === 404 ? "لم يتم العثور على نتيجة الفحص" : `خطأ ${r.status}`);
+      if (!r.ok) {
+        if (r.status === 404) {
+          setLoading(true);
+          return;
+        }
+        throw new Error(`خطأ ${r.status}`);
+      }
       const data = await r.json();
       setResult(data);
+      setLoading(false);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "خطأ غير معروف");
-    } finally {
       setLoading(false);
     }
   }, [scanId]);
@@ -194,15 +201,10 @@ export default function ScanResultPage() {
     <div style={{ minHeight: "100vh", background: "#0A0A0F", color: "#F0F0F8" }}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}`}</style>
       <nav style={{ padding: "18px 32px", borderBottom: "1px solid #1A1A2E", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ color: "#C9A84C", fontWeight: 900, fontSize: 20 }}>◆ AegisML</span>
+        <Link href="/" style={{ color: "#C9A84C", textDecoration: "none", fontWeight: 900, fontSize: 20 }}>◆ AegisML</Link>
       </nav>
       <main style={{ maxWidth: 920, margin: "0 auto", padding: "48px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
-        <SkeletonCard height={80} />
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: 20 }}>
-          <SkeletonCard height={220} />
-          <SkeletonCard height={220} />
-        </div>
-        <SkeletonCard height={160} />
+        <ScanProgress scanId={scanId as string} onComplete={fetchResult} />
       </main>
     </div>
   );

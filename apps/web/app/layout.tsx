@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Cairo } from "next/font/google";
 import "./globals.css";
+import Navbar from "@/components/Navbar";
 
 const cairo = Cairo({
   subsets: ["latin", "arabic"],
@@ -28,11 +29,16 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
+import SessionProviderWrapper from "@/components/SessionProviderWrapper";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ar">
       <body className={cairo.className} style={{ margin: 0, background: "#0A0A0F" }}>
-        {children}
+        <SessionProviderWrapper>
+          <Navbar />
+          {children}
+        </SessionProviderWrapper>
       </body>
     </html>
   );

@@ -14,7 +14,10 @@ import secrets
 import subprocess
 import tempfile
 import uuid
+import asyncio
 from contextlib import asynccontextmanager
+
+from scanner import ScanEngine
 from datetime import datetime, timezone
 from typing import Any, Optional
 from urllib.parse import urlparse
@@ -22,16 +25,20 @@ from urllib.parse import urlparse
 import anthropic
 from dotenv import load_dotenv
 from fastapi import (
+    BackgroundTasks,
     Depends,
     FastAPI,
     File,
+    Form,
     HTTPException,
     Query,
     Request,
     UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -47,6 +54,11 @@ from cache import (
     set_cached_stats,
     set_cached_threats,
 )
+from auth.models import User
+from auth.router import router as auth_router
+from routers.user_keys import router as keys_router
+from auth.utils import get_current_user
+from ai_providers.manager import AIProviderManager
 from database import (
     APIKey,
     AsyncSessionLocal,
@@ -195,6 +207,37 @@ BUILTIN_THREAT_PATTERNS: list[dict[str, str]] = [
 
 limiter = Limiter(key_func=get_remote_address)
 
+# ── Connection Manager ───────────────────────────────────────────────
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: dict[str, list[Any]] = {}
+
+    async def connect(self, scan_id: str, websocket: Any):
+        # We type hint websocket as Any to allow MockWS for SSE
+        if hasattr(websocket, "accept"):
+            await websocket.accept()
+        if scan_id not in self.active_connections:
+            self.active_connections[scan_id] = []
+        self.active_connections[scan_id].append(websocket)
+
+    def disconnect(self, scan_id: str, websocket: Any):
+        if scan_id in self.active_connections:
+            if websocket in self.active_connections[scan_id]:
+                self.active_connections[scan_id].remove(websocket)
+            if not self.active_connections[scan_id]:
+                del self.active_connections[scan_id]
+
+    async def send_progress(self, scan_id: str, data: dict[str, Any]):
+        if scan_id in self.active_connections:
+            for connection in self.active_connections[scan_id]:
+                try:
+                    await connection.send_json(data)
+                except Exception:
+                    pass
+
+manager = ConnectionManager()
+
 # ── Lifespan ─────────────────────────────────────────────────────────
 
 
@@ -229,18 +272,26 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.include_router(auth_router, prefix="/auth", tags=["Auth"])
+app.include_router(keys_router)
+
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# Dynamic CORS to support Vercel preview URLs
+FRONTEND_URL = os.getenv("FRONTEND_URL", "")
 ALLOWED_ORIGINS: list[str] = [
-    o
-    for o in [
-        "http://localhost:3000",
-        "https://aegisml.vercel.app",
-        os.getenv("FRONTEND_URL", ""),
-    ]
-    if o
+    "http://localhost:3000",
+    "https://aegisml.vercel.app",
 ]
+if FRONTEND_URL:
+    ALLOWED_ORIGINS.append(FRONTEND_URL)
+for k, v in os.environ.items():
+    if "VERCEL_URL" in k and v:
+        if not v.startswith("http"):
+            v = f"https://{v}"
+        if v not in ALLOWED_ORIGINS:
+            ALLOWED_ORIGINS.append(v)
 
 app.add_middleware(
     CORSMiddleware,
@@ -400,6 +451,260 @@ async def get_recent_scans(
     ]
 
 
+# ── WebSockets & Streaming ───────────────────────────────────────────
+
+@app.websocket("/ws/scan/{scan_id}")
+async def websocket_scan_endpoint(websocket: WebSocket, scan_id: str):
+    await manager.connect(scan_id, websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(scan_id, websocket)
+
+
+@app.get("/api/v1/scan/{scan_id}/stream")
+async def scan_stream(scan_id: str):
+    """SSE Fallback for streaming progress"""
+    q = asyncio.Queue()
+    class MockWS:
+        async def send_json(self, data: dict[str, Any]):
+            await q.put(data)
+            
+    mock_ws = MockWS()
+    await manager.connect(scan_id, mock_ws)
+
+    async def event_stream():
+        try:
+            while True:
+                data = await q.get()
+                yield f"data: {json.dumps(data)}\n\n"
+                if data.get("stage") in ("complete", "error"):
+                    break
+        finally:
+            manager.disconnect(scan_id, mock_ws)
+            
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@app.websocket("/ws/stats")
+async def websocket_stats_endpoint(websocket: WebSocket, db: AsyncSession = Depends(get_db)):
+    await websocket.accept()
+    try:
+        while True:
+            cached = await get_cached_stats()
+            if cached is not None:
+                await websocket.send_json(cached)
+            else:
+                result = await db.execute(select(func.count(ScanRecord.id)))
+                total_scans = result.scalar() or 0
+
+                result = await db.execute(select(func.count(ScanRecord.id)).where(ScanRecord.risk_level.in_(["malicious", "critical"])))
+                threats_found = result.scalar() or 0
+
+                stats = {"totalScans": total_scans, "threatsFound": threats_found, "activeScans": len(manager.active_connections)}
+                await set_cached_stats(stats)
+                await websocket.send_json(stats)
+            await asyncio.sleep(5)
+    except WebSocketDisconnect:
+        pass
+
+
+# ── Background Process ───────────────────────────────────────────────
+
+async def _process_scan(
+    temp_path: Optional[str],
+    filename: str,
+    ext: str,
+    scan_id: str,
+    content_size: int,
+    source_type: str,
+    source_url: str,
+    ip_address: Optional[str],
+    user_agent: str,
+    ai_provider: Optional[str] = None,
+    ai_model: Optional[str] = None,
+    user_id: Optional[str] = None,
+    api_key: Optional[str] = None,
+):
+    try:
+        await manager.send_progress(scan_id, {
+            "stage": "header_check", "progress": 10, "message": "فحص الهيكل الأساسي...", "threat_count": 0, "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        await asyncio.sleep(0.5)
+
+        await manager.send_progress(scan_id, {
+            "stage": "signature_scan", "progress": 30, "message": "البحث عن الأنماط الخبيثة...", "threat_count": 0, "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        
+        if not temp_path:
+            raise ValueError("No file provided for scanning.")
+
+        result = await _run_inspector(temp_path, filename, scan_id)
+        threat_count = len(result.get("threats", []))
+
+        await manager.send_progress(scan_id, {
+            "stage": "ai_analysis", "progress": 70, "message": "تحليل الذكاء الاصطناعي...", "threat_count": threat_count, "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+
+        ai_result = None
+        if ai_provider:
+            try:
+                async with AsyncSessionLocal() as db_session:
+                    provider_instance = await AIProviderManager.get_provider(
+                        provider_name=ai_provider,
+                        model_name=ai_model,
+                        user_id=user_id,
+                        db=db_session,
+                        plain_key=api_key
+                    )
+                
+                ai_res_obj = await provider_instance.analyze(result)
+                ai_result = {
+                    "verdict": ai_res_obj.verdict,
+                    "confidence": ai_res_obj.confidence,
+                    "summary_en": ai_res_obj.summary_en,
+                    "summary_ar": ai_res_obj.summary_ar,
+                    "key_risks": ai_res_obj.key_risks,
+                    "recommendation": ai_res_obj.recommendation,
+                    "recommendation_ar": ai_res_obj.recommendation_ar,
+                    "technical_details": ai_res_obj.technical_details,
+                    "provider": ai_res_obj.provider,
+                    "model": ai_res_obj.model
+                }
+            except Exception as e:
+                logger.error(f"AI Provider error: {e}")
+                ai_result = {
+                    "verdict": "UNKNOWN",
+                    "confidence": 0,
+                    "summary_en": f"AI analysis failed: {e}",
+                    "summary_ar": "فشل التحليل الذكي بسبب خطأ",
+                }
+        else:
+            ai_result = await _claude_judge(result)
+            
+        result["ai_analysis"] = ai_result
+        if source_type == "url":
+            result["source_url"] = source_url
+
+        await set_cached_scan(scan_id, result)
+
+        file_size = os.path.getsize(temp_path)
+        file_hash = ""
+        sha = hashlib.sha256()
+        with open(temp_path, "rb") as fh:
+            while True:
+                block = fh.read(8192)
+                if not block:
+                    break
+                sha.update(block)
+        file_hash = sha.hexdigest()
+
+        async with AsyncSessionLocal() as db:
+            record = ScanRecord(
+                scan_id=scan_id,
+                filename=filename,
+                file_size=file_size,
+                file_extension=ext,
+                file_hash=file_hash,
+                risk_score=result.get("risk_score", 0),
+                risk_level=result.get("risk_level", "clean"),
+                threats=result.get("threats", []),
+                metadata_info=result.get("metadata", {}),
+                ai_verdict=result.get("ai_analysis", {}).get("verdict"),
+                ai_confidence=result.get("ai_analysis", {}).get("confidence"),
+                ai_summary_en=result.get("ai_analysis", {}).get("summary_en"),
+                ai_summary_ar=result.get("ai_analysis", {}).get("summary_ar"),
+                ai_key_risks=result.get("ai_analysis", {}).get("key_risks", []),
+                ai_recommendation_en=result.get("ai_analysis", {}).get("recommendation"),
+                ai_recommendation_ar=result.get("ai_analysis", {}).get("recommendation_ar"),
+                source_type=source_type,
+                source_url=source_url,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                is_public=True,
+            )
+            db.add(record)
+            await db.commit()
+
+        await invalidate_scan(scan_id)
+
+        await manager.send_progress(scan_id, {
+            "stage": "complete", "progress": 100, "message": "اكتمل الفحص بنجاح", "threat_count": threat_count, "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+
+    except Exception as exc:
+        logger.error("Scan failed for %s: %s", filename, exc, exc_info=True)
+        await manager.send_progress(scan_id, {
+            "stage": "error", "progress": 0, "message": "Internal scan error.", "threat_count": 0, "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except OSError as exc:
+                logger.warning("Failed to remove temp file %s: %s", temp_path, exc)
+
+
+async def _process_url_scan(
+    url: str,
+    filename: str,
+    ext: str,
+    scan_id: str,
+    max_size: int,
+    ip_address: Optional[str],
+    user_agent: str,
+    ai_provider: Optional[str] = None,
+    ai_model: Optional[str] = None,
+    user_id: Optional[str] = None,
+    api_key: Optional[str] = None,
+):
+    temp_path: Optional[str] = None
+    try:
+        await manager.send_progress(scan_id, {
+            "stage": "downloading", "progress": 5, "message": "جارٍ تحميل النموذج من الرابط...", "threat_count": 0, "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        import httpx
+        async with httpx.AsyncClient(timeout=300.0, follow_redirects=True, max_redirects=5) as client:
+            headers: dict[str, str] = {}
+            hf_token = os.getenv("HF_TOKEN")
+            if hf_token:
+                headers["Authorization"] = f"Bearer {hf_token}"
+            async with client.stream("GET", url, headers=headers) as response:
+                if response.status_code != 200:
+                    raise Exception(f"Failed to download from URL: HTTP {response.status_code}")
+                content_length_raw = response.headers.get("content-length")
+                if content_length_raw:
+                    try:
+                        if int(content_length_raw) > max_size:
+                            raise Exception(f"File too large. Maximum size for your tier is {max_size // (1024*1024)} MB.")
+                    except ValueError:
+                        pass
+                
+                with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+                    downloaded = 0
+                    async for chunk in response.aiter_bytes(chunk_size=1024 * 1024):
+                        downloaded += len(chunk)
+                        if downloaded > max_size:
+                            raise Exception("File too large. Size limit exceeded.")
+                        tmp.write(chunk)
+                    temp_path = tmp.name
+        
+        await _process_scan(temp_path, filename, ext, scan_id, downloaded, "url", url, ip_address, user_agent, ai_provider, ai_model, user_id, api_key)
+        temp_path = None # Prevents deleting it twice since _process_scan handles cleanup
+    except Exception as exc:
+        logger.error("URL scan failed for %s: %s", url, exc, exc_info=True)
+        await manager.send_progress(scan_id, {
+            "stage": "error", "progress": 0, "message": f"خطأ في التحميل: {str(exc)}", "threat_count": 0, "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
+
+
 # ── File Scan ────────────────────────────────────────────────────────
 
 
@@ -435,8 +740,13 @@ def _compute_file_hash(content: bytes) -> str:
 @limiter.limit("10/minute")
 async def scan_file(
     request: Request,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    ai_provider: Optional[str] = Form(None),
+    ai_model: Optional[str] = Form(None),
+    api_key: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Upload and scan a model file for security threats."""
     filename = _validate_filename(file.filename or "unknown")
@@ -448,69 +758,48 @@ async def scan_file(
 
     if content_size == 0:
         raise HTTPException(status_code=400, detail="Empty file uploaded")
-    if content_size > MAX_FILE_SIZE:
+        
+    # Tier-based file size limits
+    max_size = 50 * 1024 * 1024  # Guest: 50MB
+    if current_user:
+        if current_user.plan == "pro":
+            max_size = 2 * 1024 * 1024 * 1024  # Pro: 2GB
+        else:
+            max_size = 200 * 1024 * 1024  # Free: 200MB
+            
+    if content_size > max_size:
         raise HTTPException(
-            status_code=413, detail="File too large. Maximum size is 500 MB."
+            status_code=413, detail=f"File too large. Maximum size for your tier is {max_size // (1024*1024)} MB."
         )
 
     scan_id = str(uuid.uuid4())
-    file_hash = _compute_file_hash(content)
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
-        tmp.write(content)
-        temp_path = tmp.name
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+    tmp.write(content)
+    tmp.close()
+    temp_path = tmp.name
 
-    try:
-        result = await _run_inspector(temp_path, filename, scan_id)
-        result["ai_analysis"] = await _claude_judge(result)
+    ip_address = request.client.host if request.client else None
+    user_agent = (request.headers.get("user-agent") or "")[:500]
 
-        # Cache the scan result
-        await set_cached_scan(scan_id, result)
+    background_tasks.add_task(
+        _process_scan,
+        temp_path,
+        filename,
+        ext,
+        scan_id,
+        content_size,
+        "upload",
+        "",
+        ip_address,
+        user_agent,
+        ai_provider,
+        ai_model,
+        str(current_user.id) if current_user else None,
+        api_key
+    )
 
-        record = ScanRecord(
-            scan_id=scan_id,
-            filename=filename,
-            file_size=content_size,
-            file_extension=ext,
-            file_hash=file_hash,
-            risk_score=result.get("risk_score", 0),
-            risk_level=result.get("risk_level", "clean"),
-            threats=result.get("threats", []),
-            metadata_info=result.get("metadata", {}),
-            ai_verdict=result.get("ai_analysis", {}).get("verdict"),
-            ai_confidence=result.get("ai_analysis", {}).get("confidence"),
-            ai_summary_en=result.get("ai_analysis", {}).get("summary_en"),
-            ai_summary_ar=result.get("ai_analysis", {}).get("summary_ar"),
-            ai_key_risks=result.get("ai_analysis", {}).get("key_risks", []),
-            ai_recommendation_en=result.get("ai_analysis", {}).get("recommendation"),
-            ai_recommendation_ar=result.get("ai_analysis", {}).get(
-                "recommendation_ar"
-            ),
-            source_type="upload",
-            ip_address=request.client.host if request.client else None,
-            user_agent=(request.headers.get("user-agent") or "")[:500],
-            is_public=True,
-        )
-        db.add(record)
-        await db.commit()
-
-        # Bust stats cache after new scan
-        await invalidate_scan(scan_id)
-
-        return {"scan_id": scan_id, "status": "complete", "result": result}
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.error("Scan failed for %s: %s", filename, exc, exc_info=True)
-        raise HTTPException(
-            status_code=500, detail="Internal scan error. Please try again."
-        ) from exc
-    finally:
-        if os.path.exists(temp_path):
-            try:
-                os.remove(temp_path)
-            except OSError as exc:
-                logger.warning("Failed to remove temp file %s: %s", temp_path, exc)
+    return {"scan_id": scan_id, "status": "processing"}
 
 
 # ── URL Scan ─────────────────────────────────────────────────────────
@@ -555,7 +844,9 @@ def _validate_scan_url(url: str) -> tuple[str, str, str]:
 async def scan_url(
     request: Request,
     body: dict[str, Any],
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Download a model from a URL and scan it for security threats."""
     raw_url = body.get("url")
@@ -565,114 +856,34 @@ async def scan_url(
     url, filename, ext = _validate_scan_url(raw_url)
     scan_id = str(uuid.uuid4())
     temp_path: Optional[str] = None
+    
+    # Tier-based file size limits
+    max_size = 50 * 1024 * 1024  # Guest: 50MB
+    if current_user:
+        if current_user.plan == "pro":
+            max_size = 2 * 1024 * 1024 * 1024  # Pro: 2GB
+        else:
+            max_size = 200 * 1024 * 1024  # Free: 200MB
 
-    try:
-        import httpx
+    ip_address = request.client.host if request.client else None
+    user_agent = (request.headers.get("user-agent") or "")[:500]
 
-        async with httpx.AsyncClient(
-            timeout=300.0, follow_redirects=True, max_redirects=5
-        ) as client:
-            headers: dict[str, str] = {}
-            hf_token = os.getenv("HF_TOKEN")
-            if hf_token:
-                headers["Authorization"] = f"Bearer {hf_token}"
+    background_tasks.add_task(
+        _process_url_scan,
+        url,
+        filename,
+        ext,
+        scan_id,
+        max_size,
+        ip_address,
+        user_agent,
+        body.get("ai_provider"),
+        body.get("ai_model"),
+        str(current_user.id) if current_user else None,
+        body.get("api_key")
+    )
 
-            async with client.stream("GET", url, headers=headers) as response:
-                if response.status_code != 200:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Failed to download from URL: HTTP {response.status_code}",
-                    )
-                content_length_raw = response.headers.get("content-length")
-                if content_length_raw:
-                    try:
-                        content_length = int(content_length_raw)
-                        if content_length > MAX_FILE_SIZE:
-                            raise HTTPException(
-                                status_code=413,
-                                detail="File too large. Maximum size is 500 MB.",
-                            )
-                    except ValueError:
-                        pass  # Invalid header — rely on streaming check below
-
-                with tempfile.NamedTemporaryFile(
-                    delete=False, suffix=ext
-                ) as tmp:
-                    downloaded = 0
-                    async for chunk in response.aiter_bytes(
-                        chunk_size=1024 * 1024
-                    ):
-                        downloaded += len(chunk)
-                        if downloaded > MAX_FILE_SIZE:
-                            raise HTTPException(
-                                status_code=413,
-                                detail="File too large. Maximum size is 500 MB.",
-                            )
-                        tmp.write(chunk)
-                    temp_path = tmp.name
-
-        result = await _run_inspector(temp_path, filename, scan_id)
-        result["ai_analysis"] = await _claude_judge(result)
-        result["source_url"] = url
-
-        await set_cached_scan(scan_id, result)
-
-        file_size = os.path.getsize(temp_path) if temp_path else 0
-        file_hash = ""
-        if temp_path:
-            sha = hashlib.sha256()
-            with open(temp_path, "rb") as fh:
-                while True:
-                    block = fh.read(8192)
-                    if not block:
-                        break
-                    sha.update(block)
-            file_hash = sha.hexdigest()
-
-        record = ScanRecord(
-            scan_id=scan_id,
-            filename=filename,
-            file_size=file_size,
-            file_extension=ext,
-            file_hash=file_hash,
-            risk_score=result.get("risk_score", 0),
-            risk_level=result.get("risk_level", "clean"),
-            threats=result.get("threats", []),
-            metadata_info=result.get("metadata", {}),
-            ai_verdict=result.get("ai_analysis", {}).get("verdict"),
-            ai_confidence=result.get("ai_analysis", {}).get("confidence"),
-            ai_summary_en=result.get("ai_analysis", {}).get("summary_en"),
-            ai_summary_ar=result.get("ai_analysis", {}).get("summary_ar"),
-            ai_key_risks=result.get("ai_analysis", {}).get("key_risks", []),
-            ai_recommendation_en=result.get("ai_analysis", {}).get("recommendation"),
-            ai_recommendation_ar=result.get("ai_analysis", {}).get(
-                "recommendation_ar"
-            ),
-            source_type="url",
-            source_url=url,
-            ip_address=request.client.host if request.client else None,
-            user_agent=(request.headers.get("user-agent") or "")[:500],
-            is_public=True,
-        )
-        db.add(record)
-        await db.commit()
-
-        await invalidate_scan(scan_id)
-
-        return {"scan_id": scan_id, "status": "complete", "result": result}
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.error("URL scan failed for %s: %s", url, exc, exc_info=True)
-        raise HTTPException(
-            status_code=500, detail="Internal scan error. Please try again."
-        ) from exc
-    finally:
-        if temp_path and os.path.exists(temp_path):
-            try:
-                os.remove(temp_path)
-            except OSError as exc:
-                logger.warning("Failed to remove temp file %s: %s", temp_path, exc)
+    return {"scan_id": scan_id, "status": "processing"}
 
 
 # ── Get Scan Result ──────────────────────────────────────────────────
@@ -993,92 +1204,58 @@ async def validate_key(
 async def _run_inspector(
     file_path: str, filename: str, scan_id: str
 ) -> dict[str, Any]:
-    """Run the aegisml CLI scanner, falling back to built-in pattern matching."""
+    """Run the advanced mathematical ScanEngine."""
     try:
-        proc = subprocess.run(
-            ["python", "-m", "aegisml", "scan", file_path, "--format", "json"],
-            capture_output=True,
-            text=True,
-            timeout=120,
-            cwd=os.path.join(os.path.dirname(__file__), "..", ".."),
-        )
-        if proc.returncode == 0 and proc.stdout.strip():
-            data: dict[str, Any] = json.loads(proc.stdout)
-            data["scan_id"] = scan_id
-            data["filename"] = filename
-            return data
-    except (subprocess.TimeoutExpired, json.JSONDecodeError, FileNotFoundError) as exc:
-        logger.debug("aegisml CLI unavailable, using fallback scanner: %s", exc)
-    except Exception as exc:
-        logger.debug("aegisml CLI error: %s", exc)
-
-    # ── Fallback: built-in pattern scanner ───────────────────────
-    ext = os.path.splitext(filename)[1].lower()
-    file_size = os.path.getsize(file_path)
-    threats: list[dict[str, str]] = []
-
-    try:
-        read_limit = min(file_size, 10 * 1024 * 1024)  # 10 MB max
+        file_size = os.path.getsize(file_path)
+        read_limit = min(file_size, 50 * 1024 * 1024)  # 50 MB max
         with open(file_path, "rb") as f:
-            content = f.read(read_limit)
-        text_content = content.decode("utf-8", errors="ignore")
+            data = f.read(read_limit)
 
-        for p in BUILTIN_THREAT_PATTERNS:
-            pattern = p["pattern"]
-            if pattern.encode("utf-8") in content or pattern in text_content:
-                threats.append(
-                    {
-                        "pattern": pattern,
-                        "severity": p["severity"],
-                        "description": p["description_en"],
-                        "location": filename,
-                        "category": p["category"],
-                    }
-                )
+        result = ScanEngine.scan(data, filename)
+
+        cvss_score = result.get("cvss_score", 0.0)
+        risk_score = min(int(cvss_score * 10), 100)
+        
+        risk_level = "clean"
+        if risk_score > 0:
+            if risk_score < 40:
+                risk_level = "suspicious"
+            elif risk_score < 70:
+                risk_level = "malicious"
+            else:
+                risk_level = "critical"
+
+        threats = []
+        for t in result.get("threats", []):
+            threats.append({
+                "pattern": str(t.get("pattern_id", t.get("type", "unknown"))),
+                "severity": str(t.get("severity", "low")),
+                "description": str(t.get("desc", "")),
+                "location": filename,
+                "category": str(t.get("category", "unknown")),
+            })
+
+        return {
+            "scan_id": scan_id,
+            "filename": filename,
+            "risk_score": risk_score,
+            "risk_level": risk_level,
+            "threats": threats,
+            "metadata": {
+                "file_size": file_size,
+                "extension": os.path.splitext(filename)[1].lower(),
+                "threats_found": len(threats),
+                "cvss_score": cvss_score,
+                "cvss_severity": result.get("severity"),
+                "file_type": result.get("file_type")
+            },
+        }
     except OSError as exc:
         logger.error("Failed to read file %s: %s", file_path, exc)
-
-    severity_scores: dict[str, int] = {
-        "critical": 35,
-        "high": 20,
-        "medium": 10,
-        "low": 5,
-    }
-    base_risk: int = {
-        "pkl": 30,
-        "pickle": 30,
-        "pt": 25,
-        "pth": 25,
-        "gguf": 5,
-        "safetensors": 3,
-    }.get(ext.lstrip("."), 15)
-    threat_score = sum(
-        severity_scores.get(t["severity"], 5) for t in threats
-    )
-    risk = min(100, base_risk + threat_score)
-
-    risk_level: str
-    if risk < 30:
-        risk_level = "clean"
-    elif risk < 60:
-        risk_level = "suspicious"
-    elif risk < 85:
-        risk_level = "malicious"
-    else:
-        risk_level = "critical"
-
-    return {
-        "scan_id": scan_id,
-        "filename": filename,
-        "risk_score": risk,
-        "risk_level": risk_level,
-        "threats": threats,
-        "metadata": {
-            "file_size": file_size,
-            "extension": ext,
-            "threats_found": len(threats),
-        },
-    }
+        return {"scan_id": scan_id, "filename": filename, "risk_score": 0, "risk_level": "clean", "threats": [], "metadata": {}}
+    except Exception as exc:
+        logger.error("ScanEngine error: %s", exc, exc_info=True)
+        return {"scan_id": scan_id, "filename": filename, "risk_score": 0, "risk_level": "clean", "threats": [], "metadata": {}}
 
 
 # ── Claude AI Judge ──────────────────────────────────────────────────
