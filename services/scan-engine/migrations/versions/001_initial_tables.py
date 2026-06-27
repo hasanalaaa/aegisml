@@ -18,6 +18,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    op.execute("DROP TABLE IF EXISTS scans, threat_patterns, api_keys, users, refresh_tokens, cve_records, ioc_records CASCADE;")
     # ── scans ────────────────────────────────────────────────────
     op.create_table(
         "scans",
