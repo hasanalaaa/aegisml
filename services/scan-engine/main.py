@@ -431,7 +431,7 @@ def _compute_file_hash(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
-@app.post("/api/v1/scan/file")
+@app.post("/api/v1/scan/file", response_model=None)
 @limiter.limit("10/minute")
 async def scan_file(
     request: Request,
@@ -550,7 +550,7 @@ def _validate_scan_url(url: str) -> tuple[str, str, str]:
     return url, filename, ext
 
 
-@app.post("/api/v1/scan/url")
+@app.post("/api/v1/scan/url", response_model=None)
 @limiter.limit("5/minute")
 async def scan_url(
     request: Request,
