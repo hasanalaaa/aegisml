@@ -213,7 +213,7 @@ def downgrade() -> None:
     with op.batch_alter_table('scans', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_scans_scan_id'))
         batch_op.create_index('ix_scans_scan_id', ['scan_id'], unique=False)
-        batch_op.create_index('ix_scans_created_at', ['created_at'], unique=False)
+        pass  # Removed problematic ghost index operation
         batch_op.alter_column('created_at',
                existing_type=sa.DATETIME(),
                server_default=sa.text('(CURRENT_TIMESTAMP)'),
