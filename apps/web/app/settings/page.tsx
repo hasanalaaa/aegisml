@@ -96,24 +96,24 @@ export default function SettingsPage() {
   };
 
   if (status === "loading") {
-    return <div style={{ minHeight: "100vh", background: "#0A0A0F", display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 40, height: 40, border: "3px solid #C9A84C22", borderTopColor: "#C9A84C", borderRadius: "50%", animation: "spin 1s linear infinite" }} /></div>;
+    return <div style={{ minHeight: "100vh", background: "#0B0B0C", display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 40, height: 40, border: "3px solid #C9A84C22", borderTopColor: "#C9A84C", borderRadius: "50%", animation: "spin 1s linear infinite" }} /></div>;
   }
 
   if (status === "unauthenticated") {
     return (
-      <div style={{ minHeight: "100vh", background: "#0A0A0F", color: "#F0F0F8", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ minHeight: "100vh", background: "#0B0B0C", color: "#D1D1D1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
         <Shield size={64} color="#E74C3C" style={{ marginBottom: 20 }} />
         <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Authentication Required</h1>
         <p style={{ color: "#A8A8C4", marginBottom: 24 }}>You must be signed in to manage your API keys.</p>
-        <Link href="/" style={{ background: "#1E1E2E", padding: "10px 24px", borderRadius: 8, color: "#fff", textDecoration: "none" }}>Go Home</Link>
+        <Link href="/" style={{ background: "#232326", padding: "10px 24px", borderRadius: 8, color: "#fff", textDecoration: "none" }}>Go Home</Link>
       </div>
     );
   }
 
-  const cardStyle = { background: "#12121E", border: "1px solid #1E1E2E", borderRadius: 12, padding: 24 };
+  const cardStyle = { background: "#12121E", border: "1px solid #232326", borderRadius: 12, padding: 24 };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0A0A0F", color: "#F0F0F8", fontFamily: "system-ui, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#0B0B0C", color: "#D1D1D1", fontFamily: "system-ui, sans-serif" }}>
       <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
       
       <nav style={{ padding: "18px 40px", borderBottom: "1px solid #1A1A2E", display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(10,10,15,0.9)" }}>
@@ -153,7 +153,7 @@ export default function SettingsPage() {
               <div>
                 <label style={{ display: "block", fontSize: 13, color: "#8888AA", marginBottom: 6 }}>API Key</label>
                 <div style={{ position: "relative" }}>
-                  <Lock size={16} color="#555577" style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)" }} />
+                  <Lock size={16} color="#71717A" style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)" }} />
                   <input 
                     type="password" 
                     placeholder="sk-..." 
@@ -163,7 +163,7 @@ export default function SettingsPage() {
                     required
                   />
                 </div>
-                <p style={{ fontSize: 12, color: "#555577", marginTop: 8 }}>Keys are encrypted using AES-256 before being stored in the database.</p>
+                <p style={{ fontSize: 12, color: "#71717A", marginTop: 8 }}>Keys are encrypted using AES-256 before being stored in the database.</p>
               </div>
 
               <button 
@@ -181,7 +181,7 @@ export default function SettingsPage() {
             <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 16px 0", display: "flex", alignItems: "center", gap: 8 }}><Shield size={18} color="#C9A84C" /> Your Encrypted Keys</h2>
             
             {userKeys.length === 0 ? (
-              <p style={{ color: "#555577", fontSize: 14, margin: 0, textAlign: "center", padding: 32, background: "#0D0D18", borderRadius: 8 }}>No custom API keys stored.</p>
+              <p style={{ color: "#71717A", fontSize: 14, margin: 0, textAlign: "center", padding: 32, background: "#0D0D18", borderRadius: 8 }}>No custom API keys stored.</p>
             ) : (
               <div style={{ display: "grid", gap: 12 }}>
                 {userKeys.map(key => {

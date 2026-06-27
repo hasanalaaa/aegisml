@@ -80,7 +80,7 @@ function RiskGauge({ score }: { score: number }) {
         <circle cx="100" cy="100" r="8" fill={color} opacity="0.3" />
         <circle cx="100" cy="100" r="4" fill={color} />
         <text x="100" y="86" textAnchor="middle" fill={color} fontSize="30" fontWeight="900" fontFamily="monospace">{score}</text>
-        <text x="100" y="102" textAnchor="middle" fill="#555577" fontSize="11">/ 100</text>
+        <text x="100" y="102" textAnchor="middle" fill="#71717A" fontSize="11">/ 100</text>
       </svg>
       <div style={{ textAlign: "center" }}>
         <span style={{
@@ -195,10 +195,10 @@ export default function ScanResultPage() {
     URL.revokeObjectURL(url);
   }
 
-  const card: React.CSSProperties = { background: "#12121E", border: "1px solid #1E1E2E", borderRadius: 14 };
+  const card: React.CSSProperties = { background: "#12121E", border: "1px solid #232326", borderRadius: 14 };
 
   if (loading) return (
-    <div style={{ minHeight: "100vh", background: "#0A0A0F", color: "#F0F0F8" }}>
+    <div style={{ minHeight: "100vh", background: "#0B0B0C", color: "#D1D1D1" }}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}`}</style>
       <nav style={{ padding: "18px 32px", borderBottom: "1px solid #1A1A2E", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <Link href="/" style={{ color: "#C9A84C", textDecoration: "none", fontWeight: 900, fontSize: 20 }}>◆ AegisML</Link>
@@ -210,12 +210,12 @@ export default function ScanResultPage() {
   );
 
   if (error) return (
-    <div style={{ minHeight: "100vh", background: "#0A0A0F", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 20, padding: 24 }}>
+    <div style={{ minHeight: "100vh", background: "#0B0B0C", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 20, padding: 24 }}>
       <div style={{ fontSize: 64 }}>⚠️</div>
       <h2 style={{ color: "#E74C3C", fontSize: 22, fontWeight: 700, margin: 0, textAlign: "center" }}>{error}</h2>
       <Link href="/" style={{
         background: "linear-gradient(135deg, #C9A84C, #E4C46B)",
-        color: "#0A0A0F",
+        color: "#0B0B0C",
         padding: "12px 28px",
         borderRadius: 10,
         fontWeight: 700,
@@ -236,7 +236,7 @@ export default function ScanResultPage() {
   });
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0A0A0F", color: "#F0F0F8", fontFamily: "system-ui, sans-serif", direction: lang === "ar" ? "rtl" : "ltr" }}>
+    <div style={{ minHeight: "100vh", background: "#0B0B0C", color: "#D1D1D1", fontFamily: "system-ui, sans-serif", direction: lang === "ar" ? "rtl" : "ltr" }}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}`}</style>
 
       {/* NAV */}
@@ -272,7 +272,7 @@ export default function ScanResultPage() {
             <span style={{ color: "#333355", fontSize: 12, fontFamily: "monospace" }}>{result.scan_id}</span>
           </div>
           <h1 style={{ fontSize: 26, fontWeight: 900, margin: "0 0 6px", wordBreak: "break-all" }}>{result.filename}</h1>
-          <p style={{ color: "#555577", margin: 0, fontSize: 13 }}>
+          <p style={{ color: "#71717A", margin: 0, fontSize: 13 }}>
             {lang === "ar" ? "تقرير الفحص الأمني الكامل بواسطة AegisML + Claude AI" : "Full Security Scan Report by AegisML + Claude AI"}
           </p>
         </div>
@@ -290,9 +290,9 @@ export default function ScanResultPage() {
               {[
                 { label: lang === "ar" ? "التهديدات" : "Threats", value: result.threats?.length ?? 0, color: result.threats?.length > 0 ? "#E74C3C" : "#2ECC71" },
               ].map((s2, i) => (
-                <div key={i} style={{ textAlign: "center", background: "#0A0A0F", borderRadius: 8, padding: "8px 20px" }}>
+                <div key={i} style={{ textAlign: "center", background: "#0B0B0C", borderRadius: 8, padding: "8px 20px" }}>
                   <p style={{ color: s2.color, fontSize: 20, fontWeight: 800, margin: "0 0 2px", fontFamily: "monospace" }}>{s2.value}</p>
-                  <p style={{ color: "#555577", fontSize: 11, margin: 0 }}>{s2.label}</p>
+                  <p style={{ color: "#71717A", fontSize: 11, margin: 0 }}>{s2.label}</p>
                 </div>
               ))}
             </div>
@@ -326,7 +326,7 @@ export default function ScanResultPage() {
               </div>
 
               {/* Confidence Bar */}
-              <div style={{ background: "#0A0A0F", borderRadius: 99, height: 6, marginBottom: 18, overflow: "hidden" }}>
+              <div style={{ background: "#0B0B0C", borderRadius: 99, height: 6, marginBottom: 18, overflow: "hidden" }}>
                 <div style={{
                   width: `${ai.confidence}%`,
                   height: "100%",
@@ -339,7 +339,7 @@ export default function ScanResultPage() {
               <p style={{ color: "#C8C8E0", fontSize: 14, lineHeight: 1.75, margin: "0 0 18px" }}>
                 {lang === "ar" ? ai.summary_ar : ai.summary_en}
               </p>
-              <div style={{ background: "#0A0A0F", borderRadius: 10, padding: "14px 18px" }}>
+              <div style={{ background: "#0B0B0C", borderRadius: 10, padding: "14px 18px" }}>
                 <p style={{ color: "#C9A84C", fontSize: 11, fontWeight: 700, margin: "0 0 8px", textTransform: "uppercase", letterSpacing: 1 }}>
                   {lang === "ar" ? "التوصية" : "Recommendation"}
                 </p>
@@ -391,7 +391,7 @@ export default function ScanResultPage() {
               <p style={{ color: "#2ECC71", fontSize: 20, fontWeight: 800, margin: "0 0 8px" }}>
                 {lang === "ar" ? "لم يتم اكتشاف أي تهديدات" : "No Threats Detected"}
               </p>
-              <p style={{ color: "#555577", fontSize: 14, margin: 0 }}>
+              <p style={{ color: "#71717A", fontSize: 14, margin: 0 }}>
                 {lang === "ar" ? "الملف نظيف وفق الفحص الآلي" : "File appears clean based on automated scan"}
               </p>
             </div>
@@ -406,7 +406,7 @@ export default function ScanResultPage() {
             </h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
               {Object.entries(result.metadata).map(([k, v]) => (
-                <div key={k} style={{ background: "#0A0A0F", borderRadius: 8, padding: "10px 14px" }}>
+                <div key={k} style={{ background: "#0B0B0C", borderRadius: 8, padding: "10px 14px" }}>
                   <p style={{ color: "#444466", fontSize: 11, margin: "0 0 4px", textTransform: "uppercase", letterSpacing: 0.5 }}>{k}</p>
                   <p style={{ color: "#E0E0F0", fontSize: 13, margin: 0, fontFamily: "monospace", wordBreak: "break-all" }}>{String(v)}</p>
                 </div>
@@ -420,7 +420,7 @@ export default function ScanResultPage() {
           <Link href="/" style={{
             display: "inline-block",
             background: "linear-gradient(135deg, #C9A84C, #E4C46B)",
-            color: "#0A0A0F",
+            color: "#0B0B0C",
             padding: "13px 36px",
             borderRadius: 10,
             fontWeight: 800,

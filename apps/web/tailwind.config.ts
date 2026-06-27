@@ -9,10 +9,10 @@ const config: Config = {
     extend: {
       colors: {
         aegis: {
-          bg: "#0A0A0F",
+          bg: "#0B0B0C",
           card: "#12121E",
           gold: "#C9A84C",
-          text: "#F0F0F8",
+          text: "#D1D1D1",
           muted: "#A8A8C4",
           clean: "#2ECC71",
           suspicious: "#E67E22",

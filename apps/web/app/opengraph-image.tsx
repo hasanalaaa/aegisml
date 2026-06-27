@@ -10,7 +10,7 @@ export default async function Image() {
     (
       <div
         style={{
-          background: "#0A0A0F",
+          background: "#0B0B0C",
           width: "100%",
           height: "100%",
           display: "flex",
@@ -30,7 +30,7 @@ export default async function Image() {
           ◆ AegisML
         </div>
 
-        <div style={{ color: "#F0F0F8", fontSize: 68, fontWeight: 900, textAlign: "center", lineHeight: 1.1, marginBottom: 20, display: "flex" }}>
+        <div style={{ color: "#D1D1D1", fontSize: 68, fontWeight: 900, textAlign: "center", lineHeight: 1.1, marginBottom: 20, display: "flex" }}>
           Scan AI Models
         </div>
         <div style={{ color: "#C9A84C", fontSize: 68, fontWeight: 900, textAlign: "center", marginBottom: 36, display: "flex" }}>

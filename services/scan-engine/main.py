@@ -58,6 +58,10 @@ from auth.models import User
 from auth.router import router as auth_router
 from routers.user_keys import router as keys_router
 from routers.threat_intel import router as threat_intel_router
+from routers.analytics import router as analytics_router
+from routers.developer import router as developer_router, trigger_webhook
+from graphql_gateway.schema import schema
+from strawberry.fastapi import GraphQLRouter
 from auth.utils import get_current_user
 from threat_intel.scheduler import start_scheduler, shutdown_scheduler
 from threat_intel.ioc_database import check_hash
@@ -280,6 +284,11 @@ app = FastAPI(
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(keys_router)
 app.include_router(threat_intel_router)
+app.include_router(analytics_router)
+app.include_router(developer_router)
+
+graphql_app = GraphQLRouter(schema)
+app.include_router(graphql_app, prefix="/graphql")
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -656,6 +665,25 @@ async def _process_scan(
             )
             db.add(record)
             await db.commit()
+            
+            if user_id:
+                try:
+                    user_uuid = uuid.UUID(user_id)
+                    await trigger_webhook(
+                        user_id=user_uuid, 
+                        event_type="scan.completed", 
+                        payload={"scan_id": scan_id, "risk_level": result.get("risk_level", "clean")}, 
+                        db=db
+                    )
+                    if result.get("risk_level") == "critical":
+                        await trigger_webhook(
+                            user_id=user_uuid, 
+                            event_type="threat.critical", 
+                            payload={"scan_id": scan_id, "threats": result.get("threats", [])}, 
+                            db=db
+                        )
+                except Exception as wh_exc:
+                    logger.error(f"Failed to trigger webhooks: {wh_exc}")
 
         await invalidate_scan(scan_id)
 

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import os
+import uuid
 from datetime import datetime, timezone
 from typing import AsyncGenerator, Optional
 
@@ -25,6 +26,7 @@ from sqlalchemy import (
     func,
     select,
 )
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -239,6 +241,34 @@ class IOCRecord(Base):
     reporter_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     reported_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
+class WebhookSubscription(Base):
+    __tablename__ = "webhook_subscriptions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    url: Mapped[str] = mapped_column(String(1000), nullable=False)
+    secret_token: Mapped[str] = mapped_column(String(64), nullable=False)
+    events: Mapped[dict] = mapped_column(JSON, default=list)  # e.g., ["scan.completed", "threat.critical"]
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
+class WebhookLog(Base):
+    __tablename__ = "webhook_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    subscription_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    event_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+    response_status: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    response_body: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    triggered_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
 

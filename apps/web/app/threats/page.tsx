@@ -68,27 +68,27 @@ export default function ThreatsPage() {
   });
 
   const card: React.CSSProperties = {
-    background: "#12121E", border: "1px solid #1E1E2E", borderRadius: 14,
+    background: "#12121E", border: "1px solid #232326", borderRadius: 14,
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0A0A0F", color: "#F0F0F8", direction: lang === "ar" ? "rtl" : "ltr", fontFamily: "Cairo, system-ui, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#0B0B0C", color: "#D1D1D1", direction: lang === "ar" ? "rtl" : "ltr", fontFamily: "Cairo, system-ui, sans-serif" }}>
       <style>{`@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}`}</style>
 
       <nav style={{ padding: "16px 32px", borderBottom: "1px solid #1A1A2E", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "rgba(10,10,15,0.92)", backdropFilter: "blur(12px)", zIndex: 100 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <Link href="/" style={{ color: "#C9A84C", textDecoration: "none", fontWeight: 900, fontSize: 20 }}>◆ AegisML</Link>
-          <span style={{ color: "#555577", fontSize: 13 }}>/ Threat Intelligence</span>
+          <span style={{ color: "#71717A", fontSize: 13 }}>/ Threat Intelligence</span>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <div style={{ display: "flex", background: "#0D0D18", border: "1px solid #1E1E2E", borderRadius: 8, padding: 3, gap: 2 }}>
+          <div style={{ display: "flex", background: "#0D0D18", border: "1px solid #232326", borderRadius: 8, padding: 3, gap: 2 }}>
             {(["ar", "en"] as const).map((l) => (
-              <button key={l} onClick={() => setLang(l)} style={{ background: lang === l ? "#C9A84C22" : "transparent", border: `1px solid ${lang === l ? "#C9A84C44" : "transparent"}`, color: lang === l ? "#C9A84C" : "#555577", padding: "4px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
+              <button key={l} onClick={() => setLang(l)} style={{ background: lang === l ? "#C9A84C22" : "transparent", border: `1px solid ${lang === l ? "#C9A84C44" : "transparent"}`, color: lang === l ? "#C9A84C" : "#71717A", padding: "4px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
                 {l === "ar" ? "عربي" : "EN"}
               </button>
             ))}
           </div>
-          <Link href="/" style={{ background: "linear-gradient(135deg, #C9A84C, #E4C46B)", color: "#0A0A0F", padding: "6px 16px", borderRadius: 8, fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
+          <Link href="/" style={{ background: "linear-gradient(135deg, #C9A84C, #E4C46B)", color: "#0B0B0C", padding: "6px 16px", borderRadius: 8, fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
             {lang === "ar" ? "فحص الآن" : "Scan Now"}
           </Link>
         </div>
@@ -125,8 +125,8 @@ export default function ThreatsPage() {
         )}
 
         {/* IOC Checker */}
-        <div style={{ ...card, padding: "24px", marginBottom: 36, background: "linear-gradient(180deg, #12121E, #0A0A0F)" }}>
-          <h2 style={{ fontSize: 20, margin: "0 0 16px", color: "#F0F0F8" }}>
+        <div style={{ ...card, padding: "24px", marginBottom: 36, background: "linear-gradient(180deg, #12121E, #0B0B0C)" }}>
+          <h2 style={{ fontSize: 20, margin: "0 0 16px", color: "#D1D1D1" }}>
             🛡️ {lang === "ar" ? "المحقق الفوري للبصمات (IOC Checker)" : "Instant Hash Checker (IOC)"}
           </h2>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
@@ -135,12 +135,12 @@ export default function ThreatsPage() {
               value={hashInput}
               onChange={(e) => setHashInput(e.target.value)}
               placeholder={lang === "ar" ? "أدخل بصمة الملف (SHA256 Hash)..." : "Enter file hash (SHA256)..."}
-              style={{ flex: 1, minWidth: 280, background: "#0A0A0F", border: "1px solid #2A2A3E", borderRadius: 8, padding: "12px 16px", color: "#F0F0F8", fontSize: 14, outline: "none", fontFamily: "monospace" }}
+              style={{ flex: 1, minWidth: 280, background: "#0B0B0C", border: "1px solid #2A2A3E", borderRadius: 8, padding: "12px 16px", color: "#D1D1D1", fontSize: 14, outline: "none", fontFamily: "monospace" }}
             />
             <button 
               onClick={handleHashCheck}
               disabled={checkingHash || !hashInput.trim()}
-              style={{ background: "#C9A84C", color: "#0A0A0F", border: "none", padding: "0 24px", borderRadius: 8, fontWeight: 800, cursor: checkingHash ? "not-allowed" : "pointer", opacity: checkingHash ? 0.7 : 1 }}
+              style={{ background: "#C9A84C", color: "#0B0B0C", border: "none", padding: "0 24px", borderRadius: 8, fontWeight: 800, cursor: checkingHash ? "not-allowed" : "pointer", opacity: checkingHash ? 0.7 : 1 }}
             >
               {checkingHash ? (lang === "ar" ? "جاري الفحص..." : "Checking...") : (lang === "ar" ? "تحقق" : "Verify")}
             </button>
@@ -153,7 +153,7 @@ export default function ThreatsPage() {
               ) : hashResult.status === "found" ? (
                 <div>
                   <p style={{ margin: "0 0 8px", color: "#E74C3C", fontWeight: 900, fontSize: 16 }}>🚨 {lang === "ar" ? "تحذير: هذه البصمة معروفة كتهديد خبيث!" : "WARNING: This hash is a known threat!"}</p>
-                  <p style={{ margin: 0, color: "#F0F0F8", fontSize: 13 }}>
+                  <p style={{ margin: 0, color: "#D1D1D1", fontSize: 13 }}>
                     Severity: <strong style={{ color: "#E74C3C" }}>{hashResult.details.severity.toUpperCase()}</strong> | 
                     Verified: {hashResult.details.is_verified ? "Yes" : "Pending"}
                   </p>
@@ -175,7 +175,7 @@ export default function ThreatsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={lang === "ar" ? "ابحث عن ثغرة..." : "Search CVEs..."}
-            style={{ width: 250, background: "#12121E", border: "1px solid #2A2A3E", borderRadius: 8, padding: "8px 14px", color: "#F0F0F8", fontSize: 13, outline: "none" }}
+            style={{ width: 250, background: "#12121E", border: "1px solid #2A2A3E", borderRadius: 8, padding: "8px 14px", color: "#D1D1D1", fontSize: 13, outline: "none" }}
           />
         </div>
 

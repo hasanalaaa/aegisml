@@ -1,16 +1,16 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg-page: #0A0A0F;
+  --bg-page: #0B0B0C;
   --bg-card: #12121E;
   --bg-card-hover: #16162A;
   --gold: #C9A84C;
   --gold-bright: #E4C46B;
   --gold-dim: #C9A84C33;
-  --text-primary: #F0F0F8;
+  --text-primary: #D1D1D1;
   --text-secondary: #A8A8C4;
-  --text-muted: #555577;
-  --border: #1E1E2E;
+  --text-muted: #71717A;
+  --border: #232326;
   --border-bright: #2A2A3E;
   --clean: #2ECC71;
   --warning: #E67E22;
@@ -18,9 +18,10 @@
   --scanning: #3498DB;
 }
 
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; overflow-x: hidden; }
 
 body {
+  overflow-x: hidden;
   background: var(--bg-page);
   color: var(--text-primary);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -57,7 +58,7 @@ body {
 
 .btn-primary {
   background: linear-gradient(135deg, #C9A84C, #E4C46B);
-  color: #0A0A0F;
+  color: #0B0B0C;
   border: none;
   font-weight: 800;
   cursor: pointer;
@@ -75,7 +76,7 @@ body {
 }
 
 .shimmer-bg {
-  background: linear-gradient(90deg, #12121E 25%, #1E1E2E 50%, #12121E 75%);
+  background: linear-gradient(90deg, #12121E 25%, #232326 50%, #12121E 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }

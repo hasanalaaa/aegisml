@@ -225,11 +225,11 @@ export default function HomePage() {
     return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
   };
 
-  const card: React.CSSProperties = { background: "#12121E", border: "1px solid #1E1E2E", borderRadius: 14 };
+  const card: React.CSSProperties = { background: "#12121E", border: "1px solid #232326", borderRadius: 14 };
   const sectionStyle: React.CSSProperties = { maxWidth: 1100, margin: "0 auto", padding: "80px 24px" };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0A0A0F", color: "#F0F0F8", direction: t.dir, fontFamily: "Cairo, system-ui, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#0B0B0C", color: "#D1D1D1", direction: t.dir, fontFamily: "Cairo, system-ui, sans-serif" }}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
@@ -250,7 +250,7 @@ export default function HomePage() {
       }}>
         <span style={{ color: "#C9A84C", fontWeight: 900, fontSize: 20, letterSpacing: 1 }}>◆ AegisML</span>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <div style={{ display: "flex", background: "#0D0D18", border: "1px solid #1E1E2E", borderRadius: 8, padding: 3, gap: 2 }}>
+          <div style={{ display: "flex", background: "#0D0D18", border: "1px solid #232326", borderRadius: 8, padding: 3, gap: 2 }}>
             {(["ar", "en"] as const).map(l => (
               <button
                 key={l}
@@ -258,7 +258,7 @@ export default function HomePage() {
                 style={{
                   background: lang === l ? "#C9A84C22" : "transparent",
                   border: `1px solid ${lang === l ? "#C9A84C44" : "transparent"}`,
-                  color: lang === l ? "#C9A84C" : "#555577",
+                  color: lang === l ? "#C9A84C" : "#71717A",
                   padding: "4px 14px",
                   borderRadius: 6,
                   cursor: "pointer",
@@ -292,7 +292,7 @@ export default function HomePage() {
             onClick={() => document.getElementById("scan-section")?.scrollIntoView({ behavior: "smooth" })}
             style={{
               background: "linear-gradient(135deg, #C9A84C, #E4C46B)",
-              color: "#0A0A0F",
+              color: "#0B0B0C",
               border: "none",
               padding: "6px 18px",
               borderRadius: 8,
@@ -338,7 +338,7 @@ export default function HomePage() {
           <div style={{
             display: "flex",
             background: "#0D0D18",
-            border: "1px solid #1E1E2E",
+            border: "1px solid #232326",
             borderRadius: 12,
             padding: 4,
             marginBottom: 16,
@@ -361,7 +361,7 @@ export default function HomePage() {
                   background: scanMode === mode
                     ? "linear-gradient(135deg, #C9A84C22, #E4C46B11)"
                     : "transparent",
-                  color: scanMode === mode ? "#C9A84C" : "#555577",
+                  color: scanMode === mode ? "#C9A84C" : "#71717A",
                   fontWeight: 700,
                   fontSize: 14,
                   cursor: "pointer",
@@ -403,7 +403,7 @@ export default function HomePage() {
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
                   <div style={{ width: 44, height: 44, border: "3px solid #C9A84C22", borderTop: "3px solid #C9A84C", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
                   <p style={{ color: "#C9A84C", fontWeight: 700, margin: 0 }}>{t.scanningMsg}</p>
-                  <p style={{ color: "#555577", fontSize: 13, margin: 0 }}>{file?.name}</p>
+                  <p style={{ color: "#71717A", fontSize: 13, margin: 0 }}>{file?.name}</p>
                 </div>
               ) : file ? (
                 <div>
@@ -421,7 +421,7 @@ export default function HomePage() {
                 <div>
                   <div style={{ fontSize: 44, marginBottom: 14, opacity: 0.5 }}>⬡</div>
                   <p style={{ color: "#D0D0E8", fontWeight: 600, margin: "0 0 8px", fontSize: 16 }}>{t.dropTitle}</p>
-                  <p style={{ color: "#555577", margin: 0, fontSize: 13 }}>{t.dropFormats}</p>
+                  <p style={{ color: "#71717A", margin: 0, fontSize: 13 }}>{t.dropFormats}</p>
                 </div>
               )}
             </div>
@@ -445,7 +445,7 @@ export default function HomePage() {
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
                   <div style={{ width: 44, height: 44, border: "3px solid #C9A84C22", borderTop: "3px solid #C9A84C", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
                   <p style={{ color: "#C9A84C", fontWeight: 700, margin: 0 }}>{t.scanningMsg}</p>
-                  <p style={{ color: "#555577", fontSize: 13, margin: 0, wordBreak: "break-all" }}>{urlInput}</p>
+                  <p style={{ color: "#71717A", fontSize: 13, margin: 0, wordBreak: "break-all" }}>{urlInput}</p>
                 </div>
               ) : (
                 <div>
@@ -461,7 +461,7 @@ export default function HomePage() {
                       borderRadius: 12,
                       border: "1px solid #2A2A3E",
                       background: "#0D0D18",
-                      color: "#F0F0F8",
+                      color: "#D1D1D1",
                       fontSize: 14,
                       outline: "none",
                       transition: "border-color 0.2s",
@@ -469,7 +469,7 @@ export default function HomePage() {
                       textAlign: "left",
                     }}
                   />
-                  <p style={{ color: "#555577", margin: 0, fontSize: 13 }}>{t.urlHint}</p>
+                  <p style={{ color: "#71717A", margin: 0, fontSize: 13 }}>{t.urlHint}</p>
                 </div>
               )}
             </div>
@@ -501,7 +501,7 @@ export default function HomePage() {
             style={{
               width: "100%", padding: "15px", borderRadius: 12, fontSize: 16, fontWeight: 800, border: "none",
               background: (scanMode === "file" ? file : urlInput.trim()) && !scanning ? "linear-gradient(135deg, #C9A84C, #E4C46B)" : "#12121E",
-              color: (scanMode === "file" ? file : urlInput.trim()) && !scanning ? "#0A0A0F" : "#333355",
+              color: (scanMode === "file" ? file : urlInput.trim()) && !scanning ? "#0B0B0C" : "#333355",
               cursor: (scanMode === "file" ? file : urlInput.trim()) && !scanning ? "pointer" : "not-allowed",
               transition: "all 0.25s ease", letterSpacing: 0.5,
             }}
@@ -518,19 +518,19 @@ export default function HomePage() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
             <div style={{ ...card, padding: "28px 20px", textAlign: "center", position: "relative", overflow: "hidden" }}>
               <p style={{ color: "#C9A84C", fontSize: 36, fontWeight: 900, margin: "0 0 6px", fontFamily: "monospace" }}>{liveStats?.totalScans ?? "-"}</p>
-              <p style={{ color: "#F0F0F8", fontSize: 15, fontWeight: 600, margin: "0 0 4px" }}>{lang === "ar" ? "إجمالي الفحوصات" : "Total Scans"}</p>
-              <p style={{ color: "#555577", fontSize: 12, margin: 0 }}>Powered by PostgreSQL</p>
+              <p style={{ color: "#D1D1D1", fontSize: 15, fontWeight: 600, margin: "0 0 4px" }}>{lang === "ar" ? "إجمالي الفحوصات" : "Total Scans"}</p>
+              <p style={{ color: "#71717A", fontSize: 12, margin: 0 }}>Powered by PostgreSQL</p>
             </div>
             <div style={{ ...card, padding: "28px 20px", textAlign: "center", position: "relative", overflow: "hidden" }}>
               <p style={{ color: "#E74C3C", fontSize: 36, fontWeight: 900, margin: "0 0 6px", fontFamily: "monospace" }}>{liveStats?.threatsFound ?? "-"}</p>
-              <p style={{ color: "#F0F0F8", fontSize: 15, fontWeight: 600, margin: "0 0 4px" }}>{lang === "ar" ? "التهديدات المكتشفة" : "Threats Found"}</p>
-              <p style={{ color: "#555577", fontSize: 12, margin: 0 }}>Blocked Malicious Models</p>
+              <p style={{ color: "#D1D1D1", fontSize: 15, fontWeight: 600, margin: "0 0 4px" }}>{lang === "ar" ? "التهديدات المكتشفة" : "Threats Found"}</p>
+              <p style={{ color: "#71717A", fontSize: 12, margin: 0 }}>Blocked Malicious Models</p>
             </div>
             <div style={{ ...card, padding: "28px 20px", textAlign: "center", position: "relative", overflow: "hidden" }}>
               {liveStats?.activeScans ? <div style={{ position: "absolute", top: 12, right: 12, width: 8, height: 8, borderRadius: "50%", background: "#2ECC71", boxShadow: "0 0 8px #2ECC71", animation: "pulse 1.5s infinite" }} /> : null}
               <p style={{ color: "#2ECC71", fontSize: 36, fontWeight: 900, margin: "0 0 6px", fontFamily: "monospace" }}>{liveStats?.activeScans ?? 0}</p>
-              <p style={{ color: "#F0F0F8", fontSize: 15, fontWeight: 600, margin: "0 0 4px" }}>{lang === "ar" ? "فحوصات نشطة الآن" : "Active Scans Now"}</p>
-              <p style={{ color: "#555577", fontSize: 12, margin: 0 }}>Live WebSocket Stream</p>
+              <p style={{ color: "#D1D1D1", fontSize: 15, fontWeight: 600, margin: "0 0 4px" }}>{lang === "ar" ? "فحوصات نشطة الآن" : "Active Scans Now"}</p>
+              <p style={{ color: "#71717A", fontSize: 12, margin: 0 }}>Live WebSocket Stream</p>
             </div>
           </div>
         </div>
@@ -548,7 +548,7 @@ export default function HomePage() {
           {t.why.map((item, i) => (
             <div key={i} style={{ ...card, padding: "28px 24px", transition: "transform 0.2s ease, border-color 0.2s ease", cursor: "default" }}
               onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-3px)"; (e.currentTarget as HTMLDivElement).style.borderColor = "#C9A84C33"; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLDivElement).style.borderColor = "#1E1E2E"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLDivElement).style.borderColor = "#232326"; }}
             >
               <div style={{ fontSize: 36, marginBottom: 16 }}>{item.icon}</div>
               <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 10, color: "#E4C46B" }}>{item.title}</h3>
@@ -585,7 +585,7 @@ export default function HomePage() {
               </div>
             ))}
           </div>
-          <p style={{ textAlign: "center", color: "#555577", fontSize: 13, marginTop: 24 }}>{t.threatsMore}</p>
+          <p style={{ textAlign: "center", color: "#71717A", fontSize: 13, marginTop: 24 }}>{t.threatsMore}</p>
         </div>
       </section>
 
@@ -613,19 +613,19 @@ export default function HomePage() {
         <button
           onClick={() => document.getElementById("scan-section")?.scrollIntoView({ behavior: "smooth" })}
           style={{
-            background: "linear-gradient(135deg, #C9A84C, #E4C46B)", color: "#0A0A0F", border: "none",
+            background: "linear-gradient(135deg, #C9A84C, #E4C46B)", color: "#0B0B0C", border: "none",
             padding: "16px 48px", borderRadius: 12, fontWeight: 800, fontSize: 17, cursor: "pointer", marginBottom: 16,
           }}
         >
           {t.ctaBtn}
         </button>
-        <p style={{ color: "#555577", fontSize: 13 }}>{SUPPORTED_FORMATS.join(" • ")}</p>
+        <p style={{ color: "#71717A", fontSize: 13 }}>{SUPPORTED_FORMATS.join(" • ")}</p>
       </section>
 
       {/* FOOTER */}
       <footer style={{ borderTop: "1px solid #1A1A2E", padding: "48px 24px", textAlign: "center" }}>
         <p style={{ color: "#C9A84C", fontWeight: 800, fontSize: 20, marginBottom: 8 }}>◆ AegisML</p>
-        <p style={{ color: "#555577", fontSize: 13, marginBottom: 24, maxWidth: 440, margin: "0 auto 24px" }}>
+        <p style={{ color: "#71717A", fontSize: 13, marginBottom: 24, maxWidth: 440, margin: "0 auto 24px" }}>
           {t.footerDesc}
         </p>
         <div style={{ display: "flex", justifyContent: "center", gap: 28, flexWrap: "wrap", marginBottom: 24 }}>
@@ -636,7 +636,7 @@ export default function HomePage() {
             { label: "License", href: "https://github.com/hasanalaaa/aegisml/blob/main/LICENSE" },
           ].map((link, i) => (
             <Link key={i} href={link.href} target="_blank" rel="noopener noreferrer"
-              style={{ color: "#555577", fontSize: 13, textDecoration: "none" }}>
+              style={{ color: "#71717A", fontSize: 13, textDecoration: "none" }}>
               {link.label}
             </Link>
           ))}

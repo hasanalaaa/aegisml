@@ -75,7 +75,7 @@ export default function ThreatCard({ cve, lang }: ThreatCardProps) {
       </p>
       
       {cve.published_date && (
-        <p style={{ color: "#555577", fontSize: 11, margin: "auto 0 0", fontFamily: "monospace" }}>
+        <p style={{ color: "#71717A", fontSize: 11, margin: "auto 0 0", fontFamily: "monospace" }}>
           {lang === "ar" ? "نُشر في: " : "Published: "} {new Date(cve.published_date).toLocaleDateString()}
         </p>
       )}

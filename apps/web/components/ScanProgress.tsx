@@ -17,7 +17,7 @@ export default function ScanProgress({ scanId, onComplete }: { scanId: string, o
   if (!data && !error) {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "400px", gap: 16 }}>
-        <div style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid #1E1E2E", borderTopColor: "#C9A84C", animation: "spin 1s linear infinite" }}></div>
+        <div style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid #232326", borderTopColor: "#C9A84C", animation: "spin 1s linear infinite" }}></div>
         <p style={{ color: "#A8A8C4", margin: 0, fontWeight: 600 }}>Connecting to Real-Time Engine...</p>
       </div>
     );
@@ -47,7 +47,7 @@ export default function ScanProgress({ scanId, onComplete }: { scanId: string, o
   const currentStageIndex = currentStages.findIndex(s => s.id === data.stage);
   
   return (
-    <div style={{ background: "#12121E", border: "1px solid #1E1E2E", borderRadius: 16, padding: "32px", maxWidth: 600, margin: "40px auto", color: "#F0F0F8" }}>
+    <div style={{ background: "#12121E", border: "1px solid #232326", borderRadius: 16, padding: "32px", maxWidth: 600, margin: "40px auto", color: "#D1D1D1" }}>
       <h3 style={{ margin: "0 0 8px", fontSize: 20, color: "#C9A84C", fontWeight: 800 }}>Scanning in Progress...</h3>
       <p style={{ margin: "0 0 32px", color: "#8888AA", fontSize: 14 }}>{data.message || "Initializing..."}</p>
 
@@ -92,7 +92,7 @@ export default function ScanProgress({ scanId, onComplete }: { scanId: string, o
       </div>
 
       {/* Threat Counter */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#0A0A0F", padding: "16px 24px", borderRadius: 12, border: "1px solid #1A1A2E" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#0B0B0C", padding: "16px 24px", borderRadius: 12, border: "1px solid #1A1A2E" }}>
         <span style={{ color: "#8888AA", fontSize: 13, fontWeight: 600 }}>Threats Discovered</span>
         <span style={{ 
           color: data.threat_count > 0 ? "#E74C3C" : "#2ECC71", 

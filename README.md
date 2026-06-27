@@ -1,171 +1,112 @@
-# ◆ AegisML — AI Model Security Scanner
-
 <div align="center">
-
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-yellow.svg)](LICENSE)
-[![Python 3.9+](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://python.org)
-[![Next.js 15](https://img.shields.io/badge/Next.js-15-black.svg)](https://nextjs.org)
-[![Claude API](https://img.shields.io/badge/Powered%20by-Claude%20API-orange.svg)](https://anthropic.com)
-
-**Detect backdoors, trojans & malicious code in AI models before running them in production.**
-
-[🌐 Website](https://aegisml.vercel.app) · [📖 API Docs](https://aegisml.vercel.app/docs) · [📊 Dashboard](https://aegisml.vercel.app/dashboard) · [🐛 Issues](https://github.com/hasanalaaa/aegisml/issues)
-
+  <img src="https://raw.githubusercontent.com/hasanalaaa/aegisml/main/apps/web/public/favicon.ico" width="80" alt="AegisML Logo" />
+  <h1>AegisML</h1>
+  <p><strong>Advanced AI Model Security & Threat Intelligence Platform</strong></p>
+  
+  [![License](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
+  [![FastAPI](https://img.shields.io/badge/FastAPI-0.103.0-009688?logo=fastapi)](https://fastapi.tiangolo.com)
+  [![Next.js](https://img.shields.io/badge/Next.js-14.0-black?logo=next.js)](https://nextjs.org)
+  [![GraphQL](https://img.shields.io/badge/GraphQL-Strawberry-E10098?logo=graphql)](https://strawberry.rocks/)
 </div>
+
+<br />
+
+## Project Overview
+**AegisML** is a next-generation, open-source security scanner tailored specifically for Artificial Intelligence models. As the deployment of AI scales globally, malicious actors exploit serialization formats (like `Pickle`, `ONNX`, and `GGUF`) to embed zero-day trojans, backdoors, and ransomware directly inside model metadata and computational graphs. 
+
+AegisML protects the machine learning supply chain by performing **Deep Structural Scanning** at the byte-level before a model ever reaches memory, preventing catastrophic Remote Code Execution (RCE) and local data exfiltration.
 
 ---
 
-## 🛡️ What is AegisML?
+## Key Architecture
 
-AegisML is an open-source security scanner for AI model files. It analyzes `.gguf`, `.safetensors`, `.pkl`, `.pt`, and `.pth` files for **14+ known threat patterns** including:
+Our robust microservices architecture was incrementally engineered across 10 structured phases:
 
-- 🔴 **Critical**: `os.system`, `eval`, `exec`, `__reduce__`, `ctypes`
-- 🟠 **High**: `subprocess`, `pickle.loads`, `socket`, `__import__`
-- 🟡 **Medium**: `base64`, `requests`, `urllib`, `shutil`
+### 1. Real-Time Scan Engine
+A highly concurrent asynchronous backend utilizing **WebSockets** and **Server-Sent Events (SSE)** fallbacks to broadcast multi-stage file analysis logs in real-time, delivering sub-millisecond status updates to the frontend dashboard.
 
-After static analysis, **Claude AI** provides a comprehensive bilingual (Arabic/English) security assessment.
+### 2. Multi-AI Judge Engine (Provider Hub)
+A flexible AI integration layer securely mediating between `Anthropic`, `OpenAI`, `Google Gemini`, and `Ollama`. User API keys are stored securely in PostgreSQL encrypted with **AES-256 (Fernet)** cryptography. The AI Judge reads the scan results and generates human-readable forensic reports and remediation strategies.
 
-## ✨ Features
+### 3. Deep Structural Scanner
+A heavy-duty forensic module equipped with over **200+ signatures** to detect evasion techniques:
+- **Pickle Opcode Tracing**: Simulates Python serialization using custom state machines without executing `__reduce__` hooks.
+- **GGUF AST Parsing**: Parses Jinja2 chat templates without triggering sandbox escapes.
+- **ONNX Protobuf**: Checks layer weights for embedded arbitrary code nodes.
+- **Mathematical Threat Analysis**: Employs **Shannon Entropy** to detect obfuscated byte arrays (Entropy > 7.5 triggers alerts) and calculates automated CVSS v3.1 severity scores.
 
-| Feature | Description |
-|---------|-------------|
-| 🔍 **Deep Static Scan** | Byte-level analysis of model files |
-| 🤖 **Claude AI Judge** | Intelligent security assessment via Claude API |
-| 🔗 **HuggingFace URL Scan** | Scan models directly from HuggingFace URLs |
-| 📊 **Public Dashboard** | Live statistics and recent scan history |
-| ⚡ **Threat Database** | Open database of 14+ threat patterns |
-| 🏷️ **Badge Generator** | Add security badges to your README |
-| ⚖️ **Model Comparison** | Compare security of two models side-by-side |
-| 🌍 **Bilingual** | Full Arabic and English support |
-| 📖 **REST API** | Public API with free API keys |
-| 🐍 **Python SDK** | `pip install aegisml` |
-| 🔄 **GitHub Action** | CI/CD integration |
+### 4. Threat Intelligence & CVE Sync
+A continuous threat-hunting system running via `APScheduler`. It fetches AI-specific CVEs directly from the **NVD API (National Vulnerability Database)** using Exponential Backoff algorithms to avoid rate-limiting, and matches model hashes against an internal **IOC (Indicators of Compromise) Blacklist**.
 
-## 🚀 Quick Start
+### 5. Analytics Hub & Geography
+A full-fledged analytical dashboard plotting malicious trends globally. Featuring interactive `Recharts` data visualization, a dynamic `React-Leaflet` GeoMap, and a server-side **PDF Report Generator** using `xhtml2pdf` (zero system-dependencies) and `Jinja2` templating.
 
-### Web Interface
-Visit [aegisml.vercel.app](https://aegisml.vercel.app) — no installation required.
+### 6. Developer Ecosystem & Webhooks
+An enterprise-grade Developer Console empowering organizations to weave AegisML directly into their CI/CD pipelines (e.g., Jenkins, GitHub Actions):
+- **GraphQL Gateway**: Built with `Strawberry GraphQL`, providing type-safe and deeply nested queries for threats, scans, and CVE records.
+- **Secure Webhooks**: An asynchronous HTTP orchestrator that blasts immediate notifications (`scan.completed`, `threat.critical`) to developer servers, cryptographically signed with **HMAC-SHA256**.
 
-### Python Package
+---
 
+## Tech Stack
+
+### Frontend (User Interface)
+- **Framework**: Next.js 14 / 15 (App Router)
+- **Styling**: Tailwind CSS (Obsidian Black & Gold Aesthetic)
+- **Visualization**: Recharts, React-Leaflet
+- **Language**: TypeScript (Strict Mode)
+
+### Backend (Scan Engine)
+- **Framework**: FastAPI (Python 3.10+)
+- **Database**: PostgreSQL with asyncpg & Alembic
+- **Caching**: Redis
+- **APIs**: Strawberry GraphQL
+- **Security**: Cryptography (Fernet AES-256), HMAC-SHA256
+- **PDF Generation**: xhtml2pdf & Jinja2
+
+---
+
+## Production Setup
+
+To run AegisML locally or push to a production cloud server (like Vercel and Railway):
+
+### 1. Requirements
+- Node.js 18+ and `pnpm`
+- Python 3.10+
+- PostgreSQL
+- Redis Server
+
+### 2. Backend Initialization
 ```bash
-pip install aegisml
-```
-
-```python
-from aegisml import AegisML
-
-scanner = AegisML()
-result = scanner.scan("model.gguf")
-
-print(f"Risk Score: {result.risk_score}/100")
-print(f"Verdict:    {result.verdict}")
-print(f"Threats:    {len(result.threats)}")
-
-for threat in result.threats:
-    print(f"  [{threat.severity}] {threat.pattern}: {threat.description}")
-```
-
-### CLI
-
-```bash
-# Scan a file
-aegisml scan model.pkl
-
-# Output as JSON
-aegisml scan model.gguf --format json
-
-# Scan directory
-aegisml scan ./models/
-
-# With AI analysis
-ANTHROPIC_API_KEY=sk-ant-... aegisml scan model.pkl
-```
-
-### GitHub Action
-
-```yaml
-- name: Scan AI Models
-  uses: hasanalaaa/aegisml@v1
-  with:
-    model_path: ./models/
-    fail_on_critical: "true"
-    anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-```
-
-### REST API
-
-```bash
-# Scan a file
-curl -X POST https://your-backend.railway.app/api/v1/scan/file \
-  -F "file=@model.gguf"
-
-# Scan from HuggingFace URL
-curl -X POST https://your-backend.railway.app/api/v1/scan/url \
-  -H "Content-Type: application/json" \
-  -d '{"url": "https://huggingface.co/.../model.gguf"}'
-
-# Get results
-curl https://your-backend.railway.app/api/v1/scan/{scan_id}
-```
-
-## 🏗️ Project Structure
-
-```
-aegisml/
-├── aegisml/               ← Python package (pip install aegisml)
-│   ├── scanner.py         ← Core scanning engine
-│   └── cli.py             ← CLI interface
-├── apps/
-│   └── web/               ← Next.js 15 frontend
-│       └── app/
-│           ├── page.tsx           ← Home (scan UI)
-│           ├── scan/[id]/         ← Scan results
-│           ├── dashboard/         ← Public dashboard
-│           ├── docs/              ← API documentation
-│           ├── threats/           ← Threat database
-│           ├── compare/           ← Model comparison
-│           └── badge/[id]/        ← Badge generator
-└── services/
-    └── scan-engine/       ← FastAPI backend
-        ├── main.py        ← API endpoints
-        └── database.py    ← SQLAlchemy models
-```
-
-## 🔧 Self-Hosting
-
-```bash
-# Clone
-git clone https://github.com/hasanalaaa/aegisml
-cd aegisml
-
-# Backend
 cd services/scan-engine
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env
-uvicorn main:app --host 0.0.0.0 --port 8000
 
-# Frontend
+# Set up environment variables (.env)
+cp .env.example .env
+
+# Run database migrations
+alembic upgrade head
+
+# Start the FastAPI engine
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+### 3. Frontend Initialization
+```bash
 cd apps/web
 pnpm install
-cp .env.example .env.local
-pnpm dev
+
+# Set up environment variables (.env.local)
+cp .env.local.example .env.local
+
+# Build the frontend application
+pnpm build
+
+# Start Next.js production server
+pnpm start
 ```
 
-## 🤝 Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-## 🔒 Security
-
-Found a vulnerability? See [SECURITY.md](SECURITY.md).
-
-## 📄 License
-
-AGPL-3.0 — See [LICENSE](LICENSE).
-
----
-
-<div align="center">
-Built with ◆ Claude API · Submitted to Anthropic Open Source Grant 2026
-</div>
+## License
+AegisML is licensed under the [AGPL 3.0 License](LICENSE).

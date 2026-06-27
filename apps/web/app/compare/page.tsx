@@ -35,7 +35,7 @@ export default function ComparePage() {
 
   const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
   const card: React.CSSProperties = {
-    background: "#12121E", border: "1px solid #1E1E2E", borderRadius: 14,
+    background: "#12121E", border: "1px solid #232326", borderRadius: 14,
   };
 
   useEffect(() => {
@@ -69,22 +69,22 @@ export default function ComparePage() {
   }
 
   const inputStyle: React.CSSProperties = {
-    width: "100%", background: "#0A0A0F", border: "1px solid #2A2A3E",
-    borderRadius: 8, padding: "10px 14px", color: "#F0F0F8",
+    width: "100%", background: "#0B0B0C", border: "1px solid #2A2A3E",
+    borderRadius: 8, padding: "10px 14px", color: "#D1D1D1",
     fontSize: 13, outline: "none", boxSizing: "border-box",
     direction: "ltr", fontFamily: "monospace",
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0A0A0F", color: "#F0F0F8", direction: lang === "ar" ? "rtl" : "ltr", fontFamily: "Cairo, system-ui, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#0B0B0C", color: "#D1D1D1", direction: lang === "ar" ? "rtl" : "ltr", fontFamily: "Cairo, system-ui, sans-serif" }}>
       <nav style={{ padding: "16px 32px", borderBottom: "1px solid #1A1A2E", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <Link href="/" style={{ color: "#C9A84C", textDecoration: "none", fontWeight: 900, fontSize: 20 }}>◆ AegisML</Link>
-          <span style={{ color: "#555577", fontSize: 13 }}>/ Compare</span>
+          <span style={{ color: "#71717A", fontSize: 13 }}>/ Compare</span>
         </div>
-        <div style={{ display: "flex", background: "#0D0D18", border: "1px solid #1E1E2E", borderRadius: 8, padding: 3, gap: 2 }}>
+        <div style={{ display: "flex", background: "#0D0D18", border: "1px solid #232326", borderRadius: 8, padding: 3, gap: 2 }}>
           {(["ar", "en"] as const).map((l) => (
-            <button key={l} onClick={() => setLang(l)} style={{ background: lang === l ? "#C9A84C22" : "transparent", border: `1px solid ${lang === l ? "#C9A84C44" : "transparent"}`, color: lang === l ? "#C9A84C" : "#555577", padding: "4px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
+            <button key={l} onClick={() => setLang(l)} style={{ background: lang === l ? "#C9A84C22" : "transparent", border: `1px solid ${lang === l ? "#C9A84C44" : "transparent"}`, color: lang === l ? "#C9A84C" : "#71717A", padding: "4px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
               {l === "ar" ? "عربي" : "EN"}
             </button>
           ))}
@@ -124,7 +124,7 @@ export default function ComparePage() {
           disabled={!scanIdA.trim() || !scanIdB.trim() || loading}
           style={{
             background: scanIdA && scanIdB && !loading ? "linear-gradient(135deg, #C9A84C, #E4C46B)" : "#12121E",
-            color: scanIdA && scanIdB && !loading ? "#0A0A0F" : "#555577",
+            color: scanIdA && scanIdB && !loading ? "#0B0B0C" : "#71717A",
             border: "none", padding: "13px 40px", borderRadius: 10,
             fontWeight: 700, fontSize: 15,
             cursor: scanIdA && scanIdB && !loading ? "pointer" : "not-allowed",
@@ -160,20 +160,20 @@ export default function ComparePage() {
                       {Math.round(scan.risk_score)}
                     </div>
                     <div>
-                      <p style={{ color: "#F0F0F8", fontWeight: 700, fontSize: 14, margin: 0, wordBreak: "break-all" }}>{scan.filename}</p>
+                      <p style={{ color: "#D1D1D1", fontWeight: 700, fontSize: 14, margin: 0, wordBreak: "break-all" }}>{scan.filename}</p>
                       <p style={{ color: riskColor(scan.risk_score), fontSize: 12, margin: "2px 0 0", fontWeight: 700 }}>{scan.risk_level.toUpperCase()}</p>
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-                    <div style={{ background: "#0A0A0F", borderRadius: 8, padding: "8px 14px", flex: 1, textAlign: "center" }}>
+                    <div style={{ background: "#0B0B0C", borderRadius: 8, padding: "8px 14px", flex: 1, textAlign: "center" }}>
                       <p style={{ color: "#E74C3C", fontSize: 18, fontWeight: 800, margin: 0, fontFamily: "monospace" }}>
                         {i === 0 ? comparison.comparison.a_threat_count : comparison.comparison.b_threat_count}
                       </p>
-                      <p style={{ color: "#555577", fontSize: 11, margin: 0 }}>{lang === "ar" ? "تهديد" : "threats"}</p>
+                      <p style={{ color: "#71717A", fontSize: 11, margin: 0 }}>{lang === "ar" ? "تهديد" : "threats"}</p>
                     </div>
-                    <div style={{ background: "#0A0A0F", borderRadius: 8, padding: "8px 14px", flex: 1, textAlign: "center" }}>
+                    <div style={{ background: "#0B0B0C", borderRadius: 8, padding: "8px 14px", flex: 1, textAlign: "center" }}>
                       <p style={{ color: "#C9A84C", fontSize: 18, fontWeight: 800, margin: 0, fontFamily: "monospace" }}>{scan.ai_analysis?.confidence || 0}%</p>
-                      <p style={{ color: "#555577", fontSize: 11, margin: 0 }}>confidence</p>
+                      <p style={{ color: "#71717A", fontSize: 11, margin: 0 }}>confidence</p>
                     </div>
                   </div>
                   <Link href={`/scan/${scan.scan_id}`} style={{ display: "block", textAlign: "center", color: "#C9A84C", fontSize: 13, textDecoration: "none" }}>

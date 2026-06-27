@@ -93,7 +93,7 @@ export function AIProviderSelector({ onSelect, disabled }: AIProviderSelectorPro
               const prov = providers.find(p => p.id === e.target.value);
               if (prov && prov.models.length > 0) setSelectedModel(prov.models[0]);
             }}
-            style={{ width: "100%", padding: "10px 12px", background: "#0D0D18", border: "1px solid #1E1E2E", borderRadius: 8, color: "#E0E0E8", fontSize: 14, outline: "none" }}
+            style={{ width: "100%", padding: "10px 12px", background: "#0D0D18", border: "1px solid #232326", borderRadius: 8, color: "#E0E0E8", fontSize: 14, outline: "none" }}
           >
             {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
@@ -106,7 +106,7 @@ export function AIProviderSelector({ onSelect, disabled }: AIProviderSelectorPro
             disabled={disabled}
             value={selectedModel} 
             onChange={e => setSelectedModel(e.target.value)}
-            style={{ width: "100%", padding: "10px 12px", background: "#0D0D18", border: "1px solid #1E1E2E", borderRadius: 8, color: "#E0E0E8", fontSize: 14, outline: "none" }}
+            style={{ width: "100%", padding: "10px 12px", background: "#0D0D18", border: "1px solid #232326", borderRadius: 8, color: "#E0E0E8", fontSize: 14, outline: "none" }}
           >
             {currentProviderObj?.models.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
@@ -127,14 +127,14 @@ export function AIProviderSelector({ onSelect, disabled }: AIProviderSelectorPro
 
         {!useStoredKey && (
           <div style={{ marginTop: 10, position: "relative" }}>
-            <Lock size={14} color="#555577" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
+            <Lock size={14} color="#71717A" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
             <input 
               disabled={disabled}
               type="password" 
               placeholder={`Enter ${currentProviderObj?.name || "API"} Key`}
               value={customKey}
               onChange={e => setCustomKey(e.target.value)}
-              style={{ width: "100%", padding: "10px 12px 10px 34px", background: "#0A0A0F", border: "1px solid #2A2A3E", borderRadius: 8, color: "#E0E0E8", fontSize: 13, outline: "none" }}
+              style={{ width: "100%", padding: "10px 12px 10px 34px", background: "#0B0B0C", border: "1px solid #2A2A3E", borderRadius: 8, color: "#E0E0E8", fontSize: 13, outline: "none" }}
             />
           </div>
         )}

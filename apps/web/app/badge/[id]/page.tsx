@@ -23,17 +23,17 @@ export default function BadgePage() {
   }
 
   const card: React.CSSProperties = {
-    background: "#12121E", border: "1px solid #1E1E2E",
+    background: "#12121E", border: "1px solid #232326",
     borderRadius: 12, padding: "20px 24px", marginBottom: 16,
   };
   const codeStyle: React.CSSProperties = {
-    background: "#0A0A0F", borderRadius: 8, padding: "12px 16px",
+    background: "#0B0B0C", borderRadius: 8, padding: "12px 16px",
     fontFamily: "monospace", fontSize: 12, color: "#C9A84C",
     wordBreak: "break-all", direction: "ltr", marginBottom: 12, display: "block",
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0A0A0F", color: "#F0F0F8", fontFamily: "Cairo, system-ui, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#0B0B0C", color: "#D1D1D1", fontFamily: "Cairo, system-ui, sans-serif" }}>
       <nav style={{ padding: "16px 32px", borderBottom: "1px solid #1A1A2E", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <Link href="/" style={{ color: "#C9A84C", textDecoration: "none", fontWeight: 900, fontSize: 20 }}>◆ AegisML</Link>
         <Link href={`/scan/${scanId}`} style={{ color: "#A8A8C4", textDecoration: "none", fontSize: 13 }}>← العودة للتقرير</Link>

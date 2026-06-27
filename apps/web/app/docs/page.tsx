@@ -60,7 +60,7 @@ export default function DocsPage() {
   const [generatedKey, setGeneratedKey] = useState("");
   const [generating, setGenerating] = useState(false);
   const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-  const card: React.CSSProperties = { background: "#12121E", border: "1px solid #1E1E2E", borderRadius: 12 };
+  const card: React.CSSProperties = { background: "#12121E", border: "1px solid #232326", borderRadius: 12 };
 
   async function generateKey() {
     if (!keyName.trim() || generating) return;
@@ -80,15 +80,15 @@ export default function DocsPage() {
   const ep = ENDPOINTS[activeIdx];
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0A0A0F", color: "#F0F0F8", direction: lang === "ar" ? "rtl" : "ltr", fontFamily: "Cairo, system-ui, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#0B0B0C", color: "#D1D1D1", direction: lang === "ar" ? "rtl" : "ltr", fontFamily: "Cairo, system-ui, sans-serif" }}>
       <nav style={{ padding: "16px 32px", borderBottom: "1px solid #1A1A2E", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "rgba(10,10,15,0.92)", backdropFilter: "blur(12px)", zIndex: 100 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <Link href="/" style={{ color: "#C9A84C", textDecoration: "none", fontWeight: 900, fontSize: 20 }}>◆ AegisML</Link>
-          <span style={{ color: "#555577", fontSize: 13 }}>/ Docs</span>
+          <span style={{ color: "#71717A", fontSize: 13 }}>/ Docs</span>
         </div>
-        <div style={{ display: "flex", background: "#0D0D18", border: "1px solid #1E1E2E", borderRadius: 8, padding: 3, gap: 2 }}>
+        <div style={{ display: "flex", background: "#0D0D18", border: "1px solid #232326", borderRadius: 8, padding: 3, gap: 2 }}>
           {(["ar", "en"] as const).map((l) => (
-            <button key={l} onClick={() => setLang(l)} style={{ background: lang === l ? "#C9A84C22" : "transparent", border: `1px solid ${lang === l ? "#C9A84C44" : "transparent"}`, color: lang === l ? "#C9A84C" : "#555577", padding: "4px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
+            <button key={l} onClick={() => setLang(l)} style={{ background: lang === l ? "#C9A84C22" : "transparent", border: `1px solid ${lang === l ? "#C9A84C44" : "transparent"}`, color: lang === l ? "#C9A84C" : "#71717A", padding: "4px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
               {l === "ar" ? "عربي" : "EN"}
             </button>
           ))}
@@ -136,14 +136,14 @@ export default function DocsPage() {
               {ep.body && (
                 <div style={{ marginBottom: 20 }}>
                   <p style={{ color: "#A8A8C4", fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Request Body</p>
-                  <pre style={{ background: "#0A0A0F", borderRadius: 10, padding: "14px 18px", color: "#E4C46B", fontSize: 13, fontFamily: "monospace", direction: "ltr", overflow: "auto", margin: 0 }}>{ep.body}</pre>
+                  <pre style={{ background: "#0B0B0C", borderRadius: 10, padding: "14px 18px", color: "#E4C46B", fontSize: 13, fontFamily: "monospace", direction: "ltr", overflow: "auto", margin: 0 }}>{ep.body}</pre>
                 </div>
               )}
               <div>
                 <p style={{ color: "#A8A8C4", fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
                   {lang === "ar" ? "مثال على الاستجابة" : "Example Response"}
                 </p>
-                <pre style={{ background: "#0A0A0F", borderRadius: 10, padding: "16px 18px", color: "#2ECC71", fontSize: 12, fontFamily: "monospace", direction: "ltr", overflow: "auto", margin: 0 }}>{ep.example_response}</pre>
+                <pre style={{ background: "#0B0B0C", borderRadius: 10, padding: "16px 18px", color: "#2ECC71", fontSize: 12, fontFamily: "monospace", direction: "ltr", overflow: "auto", margin: 0 }}>{ep.example_response}</pre>
               </div>
             </div>
 
@@ -156,12 +156,12 @@ export default function DocsPage() {
                 value={keyName}
                 onChange={(e) => setKeyName(e.target.value)}
                 placeholder={lang === "ar" ? "اسم مشروعك..." : "Your project name..."}
-                style={{ width: "100%", background: "#0A0A0F", border: "1px solid #2A2A3E", borderRadius: 10, padding: "12px 16px", color: "#F0F0F8", fontSize: 14, outline: "none", marginBottom: 12, boxSizing: "border-box" }}
+                style={{ width: "100%", background: "#0B0B0C", border: "1px solid #2A2A3E", borderRadius: 10, padding: "12px 16px", color: "#D1D1D1", fontSize: 14, outline: "none", marginBottom: 12, boxSizing: "border-box" }}
               />
               <button
                 onClick={generateKey}
                 disabled={!keyName.trim() || generating}
-                style={{ background: keyName.trim() && !generating ? "linear-gradient(135deg, #C9A84C, #E4C46B)" : "#1E1E2E", color: keyName.trim() && !generating ? "#0A0A0F" : "#555577", border: "none", padding: "12px 28px", borderRadius: 10, fontWeight: 700, cursor: keyName.trim() && !generating ? "pointer" : "not-allowed", fontSize: 14 }}
+                style={{ background: keyName.trim() && !generating ? "linear-gradient(135deg, #C9A84C, #E4C46B)" : "#232326", color: keyName.trim() && !generating ? "#0B0B0C" : "#71717A", border: "none", padding: "12px 28px", borderRadius: 10, fontWeight: 700, cursor: keyName.trim() && !generating ? "pointer" : "not-allowed", fontSize: 14 }}
               >
                 {generating ? "..." : lang === "ar" ? "توليد المفتاح" : "Generate Key"}
               </button>
