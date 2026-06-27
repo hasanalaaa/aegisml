@@ -1,5 +1,0 @@
-[phases.install]
-cmds = ["pip install -r services/scan-engine/requirements.txt"]
-
-[start]
-cmd = "cd services/scan-engine && uvicorn main:app --host 0.0.0.0 --port $PORT"
