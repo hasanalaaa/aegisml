@@ -201,16 +201,16 @@ limiter = Limiter(key_func=get_remote_address)
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     """Startup: init DB + Redis + seed patterns.  Shutdown: close Redis."""
-    # Startup
-    await init_db()
-    redis_ok = await init_redis()
-    logger.info("Redis status: %s", "connected" if redis_ok else "disabled")
+    logger.info("Application startup initiated.")
+    try:
+        await init_db()
+        redis_ok = await init_redis()
+        logger.info("Redis status: %s", "connected" if redis_ok else "disabled")
 
-    async with AsyncSessionLocal() as session:
-        try:
+        async with AsyncSessionLocal() as session:
             await seed_threat_patterns(session)
-        except Exception as exc:
-            logger.warning("Could not seed threat patterns: %s", exc)
+    except Exception as exc:
+        logger.error(f"Non-blocking startup database initialization warning: {exc}")
 
     logger.info("AegisML v%s started", VERSION)
     yield

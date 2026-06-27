@@ -57,7 +57,7 @@ engine = create_async_engine(
     DATABASE_URL,
     echo=False,
     pool_pre_ping=True,
-    # Completely omitting poolclass to let SQLAlchemy use the safest default for async
+    connect_args={"timeout": 10}
 )
 
 AsyncSessionLocal = async_sessionmaker(
@@ -117,13 +117,16 @@ async def close_redis() -> None:
             redis_client = None
 
 
+import asyncio
+
 async def check_redis_health() -> bool:
     """Non-throwing health-check for Redis."""
     if redis_client is None:
         return False
     try:
-        await redis_client.ping()  # type: ignore
-        return True
+        async with asyncio.timeout(3):
+            await redis_client.ping()  # type: ignore
+            return True
     except Exception:
         return False
 
@@ -131,9 +134,10 @@ async def check_redis_health() -> bool:
 async def check_db_health() -> bool:
     """Non-throwing health-check for the database."""
     try:
-        async with AsyncSessionLocal() as session:
-            await session.execute(select(func.now()))
-        return True
+        async with asyncio.timeout(3):
+            async with AsyncSessionLocal() as session:
+                await session.execute(select(func.now()))
+            return True
     except Exception:
         return False
 
