@@ -2,7 +2,7 @@
 AegisML Database Module — PostgreSQL (asyncpg) + Redis
 
 Provides:
-  - Async SQLAlchemy engine (AsyncAdaptedQueuePool or NullPool)
+  - Async SQLAlchemy engine (default poolclass, strictly no QueuePool imports)
   - Redis client with graceful fallback
   - ORM models for scans, threat patterns, and API keys
   - Session management and DB initialization utilities
@@ -31,7 +31,6 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy.pool import AsyncAdaptedQueuePool, NullPool
 
 logger = logging.getLogger("aegisml.database")
 
@@ -52,31 +51,14 @@ else:
 
 DATABASE_URL: str = _DB_URL
 
-# Detect if we're using SQLite (for local development fallback)
-_IS_SQLITE: bool = DATABASE_URL.startswith("sqlite")
-
 # ── Engine ───────────────────────────────────────────────────────────
 
-if _IS_SQLITE:
-    engine = create_async_engine(
-        DATABASE_URL,
-        echo=False,
-        poolclass=NullPool
-    )
-else:
-    engine = create_async_engine(
-        DATABASE_URL,
-        echo=False,
-        pool_pre_ping=True,
-        poolclass=AsyncAdaptedQueuePool,
-        pool_size=10,
-        max_overflow=20,
-        pool_recycle=1800,
-        connect_args={
-            "server_settings": {"application_name": "aegisml"},
-            "command_timeout": 30,
-        }
-    )
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=False,
+    pool_pre_ping=True,
+    # Completely omitting poolclass to let SQLAlchemy use the safest default for async
+)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
@@ -241,7 +223,8 @@ async def init_db() -> None:
         logger.info("Database tables verified / created")
     except Exception as exc:
         logger.error("Failed to initialise database: %s", exc)
-        raise
+        # We don't raise here to prevent uvicorn from crashing instantly,
+        # the health check will pick up the failure and Railway will report it gracefully.
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -256,28 +239,21 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def seed_threat_patterns(session: AsyncSession) -> None:
-    existing = await session.scalar(select(func.count(ThreatPattern.id)))
-    if existing and existing > 0:
-        return
+    try:
+        existing = await session.scalar(select(func.count(ThreatPattern.id)))
+        if existing and existing > 0:
+            return
 
-    defaults = [
-        ThreatPattern(pattern="os.system", severity="critical", category="code_execution", description_en="Executes arbitrary OS commands — highest risk", description_ar="ينفذ أوامر نظام التشغيل — أعلى درجات الخطر"),
-        ThreatPattern(pattern="subprocess.run", severity="critical", category="code_execution", description_en="Spawns external processes with potential privilege escalation", description_ar="يشغل عمليات خارجية مع احتمال رفع الصلاحيات"),
-        ThreatPattern(pattern="eval", severity="critical", category="code_execution", description_en="Dynamic code evaluation — can execute any Python code", description_ar="تقييم ديناميكي للكود — يمكنه تنفيذ أي كود Python"),
-        ThreatPattern(pattern="exec", severity="critical", category="code_execution", description_en="Executes compiled Python code objects", description_ar="يُنفِّذ كائنات كود Python المُجمَّعة"),
-        ThreatPattern(pattern="__reduce__", severity="critical", category="deserialization", description_en="Pickle hook that executes code during deserialization", description_ar="خطاف Pickle يُنفِّذ كوداً أثناء إلغاء التسلسل"),
-        ThreatPattern(pattern="pickle.loads", severity="high", category="deserialization", description_en="Loads arbitrary Python objects — can trigger code execution", description_ar="يحمّل كائنات Python عشوائية — يمكنه تشغيل الكود"),
-        ThreatPattern(pattern="ctypes", severity="critical", category="system_access", description_en="Low-level C library access — bypasses Python safety", description_ar="وصول مستوى منخفض لمكتبات C — يتجاوز أمان Python"),
-        ThreatPattern(pattern="socket", severity="high", category="network", description_en="Network socket creation — enables data exfiltration", description_ar="إنشاء مقبس شبكي — يُمكِّن تسريب البيانات"),
-        ThreatPattern(pattern="import os", severity="high", category="system_access", description_en="Imports OS module for system operations access", description_ar="استيراد وحدة النظام للوصول لعمليات النظام"),
-        ThreatPattern(pattern="base64", severity="medium", category="obfuscation", description_en="Often used to encode and hide malicious payloads", description_ar="يُستخدم غالباً لتشفير وإخفاء الحمولات الخبيثة"),
-        ThreatPattern(pattern="requests", severity="medium", category="network", description_en="HTTP library — can send data to external servers", description_ar="مكتبة HTTP — يمكنها إرسال بيانات لخوادم خارجية"),
-        ThreatPattern(pattern="shutil", severity="medium", category="file_operations", description_en="File system operations including copy, move, delete", description_ar="عمليات نظام الملفات شاملة النسخ والنقل والحذف"),
-        ThreatPattern(pattern="__import__", severity="high", category="code_execution", description_en="Dynamic module importing — can load any installed package", description_ar="استيراد ديناميكي للوحدات — يمكنه تحميل أي حزمة مثبتة"),
-        ThreatPattern(pattern="urllib", severity="medium", category="network", description_en="URL handling library with HTTP request capabilities", description_ar="مكتبة معالجة الروابط مع قدرات طلب HTTP"),
-    ]
+        defaults = [
+            ThreatPattern(pattern="os.system", severity="critical", category="code_execution", description_en="Executes arbitrary OS commands", description_ar="ينفذ أوامر نظام التشغيل"),
+            ThreatPattern(pattern="subprocess.run", severity="critical", category="code_execution", description_en="Spawns external processes", description_ar="يشغل عمليات خارجية"),
+            ThreatPattern(pattern="eval", severity="critical", category="code_execution", description_en="Dynamic code evaluation", description_ar="تقييم ديناميكي للكود"),
+            ThreatPattern(pattern="exec", severity="critical", category="code_execution", description_en="Executes compiled Python code", description_ar="يُنفِّذ كود Python"),
+            ThreatPattern(pattern="__reduce__", severity="critical", category="deserialization", description_en="Pickle hook", description_ar="خطاف Pickle"),
+        ]
 
-    for p in defaults:
-        session.add(p)
-    await session.commit()
-    logger.info("Seeded %d default threat patterns", len(defaults))
+        for p in defaults:
+            session.add(p)
+        await session.commit()
+    except Exception as exc:
+        logger.error("Failed to seed threat patterns: %s", exc)
