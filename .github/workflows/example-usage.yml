@@ -1,0 +1,29 @@
+name: "Example: AegisML Scan on Model Push"
+
+on:
+  push:
+    paths:
+      - "models/**"
+      - "**/*.gguf"
+      - "**/*.safetensors"
+      - "**/*.pkl"
+
+jobs:
+  scan-models:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan AI Models
+        id: aegisml
+        uses: hasanalaaa/aegisml@v1
+        with:
+          model_path: "./models/"
+          fail_on_critical: "true"
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Print Results
+        run: |
+          echo "Risk Score: ${{ steps.aegisml.outputs.risk_score }}"
+          echo "Verdict:    ${{ steps.aegisml.outputs.verdict }}"
+          echo "Threats:    ${{ steps.aegisml.outputs.threats_found }}"

@@ -1,0 +1,5 @@
+[phases.build]
+cmds = [
+    "pip install --no-cache-dir --prefer-binary -r services/scan-engine/requirements.txt",
+    "pip install --no-cache-dir --force-reinstall anthropic==0.113.0"
+]

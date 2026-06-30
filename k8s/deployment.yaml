@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aegisml-scan-engine
+  labels:
+    app: scan-engine
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: scan-engine
+  template:
+    metadata:
+      labels:
+        app: scan-engine
+    spec:
+      containers:
+      - name: scan-engine
+        image: aegisml/scan-engine:latest
+        ports:
+        - containerPort: 8000
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+          requests:
+            memory: "256Mi"
+            cpu: "250m"

@@ -1,0 +1,104 @@
+name: "AegisML - AI Model Security Scanner"
+description: "Scan AI model files for malware and backdoors using AegisML"
+author: "AegisML"
+
+branding:
+  icon: "shield"
+  color: "yellow"
+
+inputs:
+  model_path:
+    description: "Path to the model file or directory to scan"
+    required: true
+  anthropic_api_key:
+    description: "Anthropic API key for AI analysis"
+    required: false
+  fail_on_critical:
+    description: "Fail the workflow if critical threats are found"
+    required: false
+    default: "true"
+  fail_on_dangerous:
+    description: "Fail the workflow if dangerous threats are found"
+    required: false
+    default: "false"
+
+outputs:
+  risk_score:
+    description: "Risk score (0-100)"
+  risk_level:
+    description: "Risk level: clean, suspicious, malicious, critical"
+  verdict:
+    description: "AI verdict: SAFE, SUSPICIOUS, DANGEROUS, CRITICAL"
+  threats_found:
+    description: "Number of threats found"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install AegisML
+      shell: bash
+      run: pip install aegisml
+
+    - name: Run AegisML Scan
+      shell: bash
+      env:
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key }}
+        AEGISML_MODEL_PATH: ${{ inputs.model_path }}
+        AEGISML_FAIL_CRITICAL: ${{ inputs.fail_on_critical }}
+        AEGISML_FAIL_DANGEROUS: ${{ inputs.fail_on_dangerous }}
+      run: |
+        python - <<'PYEOF'
+        import subprocess, json, sys, os
+
+        model_path     = os.environ["AEGISML_MODEL_PATH"]
+        fail_critical  = os.environ.get("AEGISML_FAIL_CRITICAL", "true").lower() == "true"
+        fail_dangerous = os.environ.get("AEGISML_FAIL_DANGEROUS", "false").lower() == "true"
+
+        result = subprocess.run(
+            ["aegisml", "scan", model_path, "--format", "json", "--output", "scan_result.json"],
+            capture_output=True, text=True,
+        )
+
+        try:
+            with open("scan_result.json") as f:
+                data = json.load(f)
+        except Exception:
+            data = {}
+
+        if isinstance(data, list):
+            data = max(data, key=lambda x: x.get("risk_score", 0)) if data else {}
+
+        risk_score    = data.get("risk_score", 0)
+        risk_level    = data.get("risk_level", "clean")
+        verdict       = (data.get("ai_analysis") or {}).get("verdict", "UNKNOWN")
+        threats_found = len(data.get("threats", []))
+
+        github_output = os.environ.get("GITHUB_OUTPUT", "")
+        if github_output:
+            with open(github_output, "a") as f:
+                f.write(f"risk_score={risk_score}\n")
+                f.write(f"risk_level={risk_level}\n")
+                f.write(f"verdict={verdict}\n")
+                f.write(f"threats_found={threats_found}\n")
+
+        icon = "✅" if risk_score < 30 else "⚠️" if risk_score < 60 else "🚨"
+        print(f"\n{icon} AegisML Security Report")
+        print("=" * 50)
+        print(f"Risk Score: {risk_score}/100")
+        print(f"Risk Level: {risk_level.upper()}")
+        print(f"Verdict:    {verdict}")
+        print(f"Threats:    {threats_found}")
+
+        should_fail = (
+            (fail_critical and risk_level == "critical") or
+            (fail_dangerous and risk_level in ["malicious", "critical"])
+        )
+        if should_fail:
+            print(f"\n❌ Workflow failed: {risk_level} threats detected.")
+            sys.exit(1)
+        PYEOF

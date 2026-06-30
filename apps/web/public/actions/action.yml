@@ -1,0 +1,23 @@
+name: 'AegisML Security Scan'
+description: 'Scan AI model files for security threats'
+inputs:
+  model-url:
+    description: 'HuggingFace model URL'
+    required: true
+  api-key:
+    description: 'AegisML API key'
+    required: true
+  fail-on:
+    description: 'Minimum severity to fail: CRITICAL, HIGH, MEDIUM'
+    default: 'CRITICAL'
+outputs:
+  risk-level:
+    description: 'Risk level result'
+  report-url:
+    description: 'Full report URL'
+runs:
+  using: 'composite'
+  steps:
+    - name: Run AegisML Scan
+      shell: bash
+      run: pip install aegisml && aegisml scan "${{ inputs.model-url }}" --api-key "${{ inputs.api-key }}"

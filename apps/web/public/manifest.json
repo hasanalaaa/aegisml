@@ -1,0 +1,19 @@
+{
+  "name": "AegisML — AI Security Scanner",
+  "short_name": "AegisML",
+  "description": "Scan AI models for hidden threats. Free and open source.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#05050C",
+  "theme_color": "#C9A84C",
+  "categories": ["security", "utilities", "productivity"],
+  "icons": [
+    {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ],
+  "screenshots": [
+    {"src": "/screenshot-wide.png", "sizes": "1280x800", "type": "image/png", "form_factor": "wide"},
+    {"src": "/screenshot-mobile.png", "sizes": "390x844", "type": "image/png", "form_factor": "narrow"}
+  ]
+}

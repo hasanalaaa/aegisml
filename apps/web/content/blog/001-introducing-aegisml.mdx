@@ -1,0 +1,37 @@
+export const metadata = {
+  title: "Introducing AegisML",
+  excerpt: "The world's most advanced open-source AI model security scanner.",
+  date: "2026-06-29",
+  readTime: "3 min read"
+}
+
+# Introducing AegisML
+
+The rapid expansion of artificial intelligence has revolutionized software development, bringing incredible models like LLaMA, Stable Diffusion, and Mistral directly into the hands of millions of developers. However, this democratization has introduced a new, critical attack vector: the model file itself.
+
+## The Problem: Trust No Model
+
+When you download a `.pkl`, `.gguf`, or `.safetensors` file from an untrusted source, you aren't just downloading weights—you might be downloading arbitrary code. A maliciously crafted pickle file can execute commands the moment you load it into PyTorch. This is because Python's `pickle` module inherently executes bytecode during deserialization, a feature that was never designed with security in mind.
+
+Even "safer" formats like `.safetensors` or `.gguf` are not immune. Attackers can embed hidden payloads, steganographic data, or anomalous tensors designed to trigger specific exploits in inference engines.
+
+## Enter AegisML
+
+AegisML was built with a simple, unyielding mantra: **Trust No Model**.
+
+We've developed a comprehensive, open-source scanning engine that deeply inspects the layers of any given AI model file. AegisML doesn't just look at file extensions; it dissects the raw binary, scanning for over 250 distinct threat patterns. 
+
+Our engine evaluates:
+- **Pickle Deserialization Chains**: Detecting obfuscated arbitrary code execution.
+- **Tensor Entropy**: Finding encrypted payloads hidden within weight distributions.
+- **Metadata Anomalies**: Spotting injected scripts in HuggingFace configuration headers.
+
+## Powered by AI, For AI
+
+AegisML uniquely leverages Claude 3 to perform natural language analysis on the findings. When our heuristic engine flags an anomaly, Claude interprets the specific bytecode sequence or tensor layout to provide you with actionable, human-readable context. It answers the crucial questions: *What does this payload do? How severe is the risk? How can I safely mitigate it?*
+
+## The Future of Open Source Security
+
+We believe security should be foundational, not an afterthought. That's why AegisML's core engine is 100% open-source. Whether you're a hobbyist downloading a novel LoRA or an enterprise deploying a foundational model to production, AegisML provides the necessary layer of trust.
+
+The AI revolution is here. Let's make it secure.
