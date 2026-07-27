@@ -1,0 +1,66 @@
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  scan-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+    image: aegisml-scan-engine:local
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: sqlite+aiosqlite:////data/aegisml.db
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: "${AEGISML_SECRET_KEY:?set AEGISML_SECRET_KEY before starting}"
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    volumes:
+      - aegisml-data:/data
+      - scan-jobs:/scan-jobs
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    init: true
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"
+      interval: 10s
+      timeout: 6s
+      retries: 12
+      start_period: 20s
+
+  scan-worker:
+    image: aegisml-scan-engine:local
+    command: ["arq", "worker.WorkerSettings"]
+    environment:
+      DATABASE_URL: sqlite+aiosqlite:////data/aegisml.db
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: "${AEGISML_SECRET_KEY:?set AEGISML_SECRET_KEY before starting}"
+      TMPDIR: /scan-jobs
+      WORKER_MAX_JOBS: ${WORKER_MAX_JOBS:-2}
+    volumes:
+      - aegisml-data:/data
+      - scan-jobs:/scan-jobs
+    depends_on:
+      redis:
+        condition: service_healthy
+      scan-engine:
+        condition: service_healthy
+    restart: unless-stopped
+    init: true
+
+volumes:
+  aegisml-data:
+  scan-jobs:

@@ -1,0 +1,36 @@
+- generic [active] [ref=f3e1]:
+  - generic [ref=f3e3]:
+    - navigation [ref=f3e4]:
+      - button "الماسح الأمني" [ref=f3e5] [cursor=pointer]:
+        - generic [ref=f3e9]: AegisML
+      - generic [ref=f3e11]:
+        - button "لوحة القيادة" [ref=f3e12] [cursor=pointer]
+        - button "الماسح الأمني" [pressed] [ref=f3e13] [cursor=pointer]
+        - button "المستندات" [ref=f3e15] [cursor=pointer]
+      - button "EN" [ref=f3e17] [cursor=pointer]
+    - main [ref=f3e22]:
+      - generic [ref=f3e23]:
+        - generic [ref=f3e24]: تشغيل محلي أولاً · تحليل ساكن
+        - heading "افحص النماذج بأدلة لا بوعود مطلقة." [level=1] [ref=f3e29]
+        - paragraph [ref=f3e30]: ترسل AegisML العنصر المحدد إلى محرك الفحص الذي تضبطه. يفحص البايتات والبنية والبيانات الوصفية والأنماط المعروفة من دون تشغيل النموذج. قد يفوّت التحليل الساكن سلوكاً لا يظهر إلا وقت التشغيل.
+      - generic [ref=f3e32]:
+        - button "أفلت ملف نموذج واحد. .gguf أو .safetensors أو .pkl أو .pickle أو .pt أو .pth حتى 100 غيغابايت" [ref=f3e33] [cursor=pointer]:
+          - generic [ref=f3e38]: أفلت ملف نموذج واحد
+          - generic [ref=f3e39]: أو تصفّح جهازك — .gguf أو .safetensors أو .pkl أو .pickle أو .pt أو .pth حتى 100 غيغابايت
+        - generic [ref=f3e40]: أو افحص رابط ملف على Hugging Face
+        - generic [ref=f3e44]:
+          - textbox "أو افحص رابط ملف على Hugging Face" [ref=f3e49]:
+            - /placeholder: https://huggingface.co/org/model/resolve/main/model.safetensors
+          - button "ابدأ الفحص" [ref=f3e50] [cursor=pointer]
+      - generic [ref=f3e55]:
+        - generic [ref=f3e62]:
+          - generic [ref=f3e63]:
+            - generic [ref=f3e64]: استخدم مفتاحك الخاص
+            - generic [ref=f3e65]: BYOK
+          - generic [ref=f3e66]: تُشفّر مفاتيح المزوّد عند تخزينها في هذا المتصفح. عند تفعيل الخيار، يُرسل المفتاح المحدد إلى محرك الفحص المضبوط لذلك الطلب.
+        - switch "استخدم مفتاحك الخاص" [ref=f3e68] [cursor=pointer]
+    - contentinfo [ref=f3e70]:
+      - generic [ref=f3e71]: AEGISML · OPEN SOURCE · SELF-HOSTABLE
+      - generic [ref=f3e72]: تحليل ساكن · لا يضمن سلامة النموذج
+  - region "Notifications alt+T"
+  - alert [ref=f3e73]

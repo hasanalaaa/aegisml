@@ -1,0 +1,39 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - navigation [ref=e4]:
+      - generic [ref=e9] [cursor=pointer]:
+        - generic [ref=e10]: AegisML
+        - generic [ref=e11]: التحليل الساكن للنماذج
+      - generic [ref=e12]:
+        - button "لوحة القيادة" [ref=e13] [cursor=pointer]
+        - button "الماسح الأمني" [ref=e14] [cursor=pointer]
+        - button "المستندات" [ref=e16] [cursor=pointer]
+      - generic [ref=e17]:
+        - button "EN" [ref=e18] [cursor=pointer]
+        - generic [ref=e23]: محرك الفحص المضبوط
+        - generic [ref=e26]: A
+    - main [ref=e27]:
+      - generic [ref=e28]:
+        - generic [ref=e29]: تشغيل محلي أولاً · تحليل ساكن
+        - heading "افحص النماذج بأدلة لا بوعود مطلقة." [level=1] [ref=e34]
+        - paragraph [ref=e35]: ترسل AegisML العنصر المحدد إلى محرك الفحص الذي تضبطه. يفحص البايتات والبنية والبيانات الوصفية والأنماط المعروفة من دون تشغيل النموذج. قد يفوّت التحليل الساكن سلوكاً لا يظهر إلا وقت التشغيل.
+      - generic [ref=e37]:
+        - generic [ref=e38] [cursor=pointer]:
+          - generic [ref=e43]: أفلت ملف نموذج واحد
+          - generic [ref=e44]: أو تصفّح جهازك — .gguf أو .safetensors أو .pkl أو .pickle أو .pt أو .pth حتى 100 غيغابايت
+        - generic [ref=e45]: أو افحص رابط ملف على Hugging Face
+        - generic [ref=e49]:
+          - textbox "https://huggingface.co/org/model/resolve/main/model.safetensors" [ref=e54]
+          - button "ابدأ الفحص" [ref=e55] [cursor=pointer]
+      - generic [ref=e60]:
+        - generic [ref=e67]:
+          - generic [ref=e68]:
+            - generic [ref=e69]: استخدم مفتاحك الخاص
+            - generic [ref=e70]: BYOK
+          - generic [ref=e71]: تُشفّر مفاتيح المزوّد عند تخزينها في هذا المتصفح. عند تفعيل الخيار، يُرسل المفتاح المحدد إلى محرك الفحص المضبوط لذلك الطلب.
+        - button [ref=e72] [cursor=pointer]
+    - contentinfo [ref=e74]:
+      - generic [ref=e75]: AEGISML · OPEN SOURCE · SELF-HOSTABLE
+      - generic [ref=e76]: تحليل ساكن · لا يضمن سلامة النموذج
+  - region "Notifications alt+T"
+  - alert [ref=e77]

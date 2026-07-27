@@ -1,0 +1,38 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e3]:
+    - navigation [ref=f1e4]:
+      - generic [ref=f1e9] [cursor=pointer]:
+        - generic [ref=f1e10]: AegisML
+        - generic [ref=f1e11]: التحليل الساكن للنماذج
+      - generic [ref=f1e12]:
+        - button "لوحة القيادة" [ref=f1e13] [cursor=pointer]
+        - button "الماسح الأمني" [ref=f1e14] [cursor=pointer]
+        - button "المستندات" [ref=f1e16] [cursor=pointer]
+      - generic [ref=f1e17]:
+        - button "EN" [ref=f1e18] [cursor=pointer]
+        - generic [ref=f1e23]: A
+    - main [ref=f1e24]:
+      - generic [ref=f1e25]:
+        - generic [ref=f1e26]: تشغيل محلي أولاً · تحليل ساكن
+        - heading "افحص النماذج بأدلة لا بوعود مطلقة." [level=1] [ref=f1e31]
+        - paragraph [ref=f1e32]: ترسل AegisML العنصر المحدد إلى محرك الفحص الذي تضبطه. يفحص البايتات والبنية والبيانات الوصفية والأنماط المعروفة من دون تشغيل النموذج. قد يفوّت التحليل الساكن سلوكاً لا يظهر إلا وقت التشغيل.
+      - generic [ref=f1e34]:
+        - generic [ref=f1e35] [cursor=pointer]:
+          - generic [ref=f1e40]: أفلت ملف نموذج واحد
+          - generic [ref=f1e41]: أو تصفّح جهازك — .gguf أو .safetensors أو .pkl أو .pickle أو .pt أو .pth حتى 100 غيغابايت
+        - generic [ref=f1e42]: أو افحص رابط ملف على Hugging Face
+        - generic [ref=f1e46]:
+          - textbox "https://huggingface.co/org/model/resolve/main/model.safetensors" [ref=f1e51]
+          - button "ابدأ الفحص" [ref=f1e52] [cursor=pointer]
+      - generic [ref=f1e57]:
+        - generic [ref=f1e64]:
+          - generic [ref=f1e65]:
+            - generic [ref=f1e66]: استخدم مفتاحك الخاص
+            - generic [ref=f1e67]: BYOK
+          - generic [ref=f1e68]: تُشفّر مفاتيح المزوّد عند تخزينها في هذا المتصفح. عند تفعيل الخيار، يُرسل المفتاح المحدد إلى محرك الفحص المضبوط لذلك الطلب.
+        - button [ref=f1e69] [cursor=pointer]
+    - contentinfo [ref=f1e71]:
+      - generic [ref=f1e72]: AEGISML · OPEN SOURCE · SELF-HOSTABLE
+      - generic [ref=f1e73]: تحليل ساكن · لا يضمن سلامة النموذج
+  - region "Notifications alt+T"
+  - alert [ref=f1e74]

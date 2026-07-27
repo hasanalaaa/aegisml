@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+eggs/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Distribution
+*.tar.gz
+*.whl
+
+# Environment files (never commit secrets)
+.env
+.env.*
+!.env.example
+services/scan-engine/.env
+
+# Local runtime state and generated scanner reports
+aegisml.db
+aegisml.db-shm
+aegisml.db-wal
+.reports/
+output/

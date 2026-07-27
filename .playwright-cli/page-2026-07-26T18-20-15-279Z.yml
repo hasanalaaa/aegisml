@@ -1,0 +1,60 @@
+- generic [ref=f1e1]:
+  - generic [ref=f1e3]:
+    - navigation [ref=f1e4]:
+      - button "الماسح الأمني" [ref=f1e5] [cursor=pointer]:
+        - generic [ref=f1e9]:
+          - generic [ref=f1e10]: AegisML
+          - generic [ref=f1e11]: التحليل الساكن للنماذج
+      - generic [ref=f1e12]:
+        - button "لوحة القيادة" [ref=f1e13] [cursor=pointer]
+        - button "الماسح الأمني" [pressed] [ref=f1e14] [cursor=pointer]
+        - button "المستندات" [ref=f1e16] [cursor=pointer]
+      - generic [ref=f1e17]:
+        - button "EN" [ref=f1e18] [cursor=pointer]
+        - generic [ref=f1e23]: محرك الفحص المضبوط
+        - generic [ref=f1e26]: A
+    - main [ref=f1e27]:
+      - generic [ref=f1e28]:
+        - generic [ref=f1e29]: تشغيل محلي أولاً · تحليل ساكن
+        - heading "افحص النماذج بأدلة لا بوعود مطلقة." [level=1] [ref=f1e34]
+        - paragraph [ref=f1e35]: ترسل AegisML العنصر المحدد إلى محرك الفحص الذي تضبطه. يفحص البايتات والبنية والبيانات الوصفية والأنماط المعروفة من دون تشغيل النموذج. قد يفوّت التحليل الساكن سلوكاً لا يظهر إلا وقت التشغيل.
+      - generic [ref=f1e37]:
+        - button "أفلت ملف نموذج واحد. .gguf أو .safetensors أو .pkl أو .pickle أو .pt أو .pth حتى 100 غيغابايت" [ref=f1e38] [cursor=pointer]:
+          - generic [ref=f1e43]: أفلت ملف نموذج واحد
+          - generic [ref=f1e44]: أو تصفّح جهازك — .gguf أو .safetensors أو .pkl أو .pickle أو .pt أو .pth حتى 100 غيغابايت
+        - generic [ref=f1e45]: أو افحص رابط ملف على Hugging Face
+        - generic [ref=f1e49]:
+          - textbox "أو افحص رابط ملف على Hugging Face" [ref=f1e54]:
+            - /placeholder: https://huggingface.co/org/model/resolve/main/model.safetensors
+          - button "ابدأ الفحص" [ref=f1e55] [cursor=pointer]
+      - generic [ref=f1e59]:
+        - generic [ref=f1e60]:
+          - generic [ref=f1e67]:
+            - generic [ref=f1e68]:
+              - generic [ref=f1e69]: استخدم مفتاحك الخاص
+              - generic [ref=f1e70]: BYOK
+            - generic [ref=f1e71]: تُشفّر مفاتيح المزوّد عند تخزينها في هذا المتصفح. عند تفعيل الخيار، يُرسل المفتاح المحدد إلى محرك الفحص المضبوط لذلك الطلب.
+          - switch "استخدم مفتاحك الخاص" [checked] [active] [ref=f1e73] [cursor=pointer]
+        - generic [ref=f1e80]:
+          - generic [ref=f1e81]:
+            - generic [ref=f1e82]: المزوّد
+            - generic [ref=f1e83]:
+              - button "Claude (Anthropic)" [ref=f1e84] [cursor=pointer]
+              - button "GPT (OpenAI)" [ref=f1e86] [cursor=pointer]
+              - button "Gemini (Google)" [ref=f1e88] [cursor=pointer]
+              - button "Mistral" [ref=f1e90] [cursor=pointer]
+              - button "Groq" [ref=f1e92] [cursor=pointer]
+          - generic [ref=f1e94]:
+            - generic [ref=f1e95]: المفتاح السري
+            - generic [ref=f1e96]:
+              - textbox "المفتاح السري" [ref=f1e100]:
+                - /placeholder: sk-••••••••••••••••••••••••••••
+              - button "إظهار" [ref=f1e101] [cursor=pointer]
+            - generic [ref=f1e102]:
+              - generic [ref=f1e103]: مشفّر عند التخزين في هذا المتصفح
+              - button "ختم المفتاح" [ref=f1e108] [cursor=pointer]
+    - contentinfo [ref=f1e75]:
+      - generic [ref=f1e76]: AEGISML · OPEN SOURCE · SELF-HOSTABLE
+      - generic [ref=f1e77]: تحليل ساكن · لا يضمن سلامة النموذج
+  - region "Notifications alt+T"
+  - alert [ref=f1e78]

@@ -1,0 +1,39 @@
+- generic [active] [ref=f3e1]:
+  - generic [ref=f3e3]:
+    - navigation [ref=f3e4]:
+      - generic [ref=f3e9] [cursor=pointer]:
+        - generic [ref=f3e10]: AegisML
+        - generic [ref=f3e11]: التحليل الساكن للنماذج
+      - generic [ref=f3e12]:
+        - button "لوحة القيادة" [ref=f3e13] [cursor=pointer]
+        - button "الماسح الأمني" [ref=f3e14] [cursor=pointer]
+        - button "المستندات" [ref=f3e16] [cursor=pointer]
+      - generic [ref=f3e17]:
+        - button "EN" [ref=f3e18] [cursor=pointer]
+        - generic [ref=f3e23]: محرك الفحص المضبوط
+        - generic [ref=f3e26]: A
+    - main [ref=f3e27]:
+      - generic [ref=f3e28]:
+        - generic [ref=f3e29]: تشغيل محلي أولاً · تحليل ساكن
+        - heading "افحص النماذج بأدلة لا بوعود مطلقة." [level=1] [ref=f3e34]
+        - paragraph [ref=f3e35]: ترسل AegisML العنصر المحدد إلى محرك الفحص الذي تضبطه. يفحص البايتات والبنية والبيانات الوصفية والأنماط المعروفة من دون تشغيل النموذج. قد يفوّت التحليل الساكن سلوكاً لا يظهر إلا وقت التشغيل.
+      - generic [ref=f3e37]:
+        - generic [ref=f3e38] [cursor=pointer]:
+          - generic [ref=f3e43]: أفلت ملف نموذج واحد
+          - generic [ref=f3e44]: أو تصفّح جهازك — .gguf أو .safetensors أو .pkl أو .pickle أو .pt أو .pth حتى 100 غيغابايت
+        - generic [ref=f3e45]: أو افحص رابط ملف على Hugging Face
+        - generic [ref=f3e49]:
+          - textbox "https://huggingface.co/org/model/resolve/main/model.safetensors" [ref=f3e54]
+          - button "ابدأ الفحص" [ref=f3e55] [cursor=pointer]
+      - generic [ref=f3e60]:
+        - generic [ref=f3e67]:
+          - generic [ref=f3e68]:
+            - generic [ref=f3e69]: استخدم مفتاحك الخاص
+            - generic [ref=f3e70]: BYOK
+          - generic [ref=f3e71]: تُشفّر مفاتيح المزوّد عند تخزينها في هذا المتصفح. عند تفعيل الخيار، يُرسل المفتاح المحدد إلى محرك الفحص المضبوط لذلك الطلب.
+        - button [ref=f3e73] [cursor=pointer]
+    - contentinfo [ref=f3e75]:
+      - generic [ref=f3e76]: AEGISML · OPEN SOURCE · SELF-HOSTABLE
+      - generic [ref=f3e77]: تحليل ساكن · لا يضمن سلامة النموذج
+  - region "Notifications alt+T"
+  - alert [ref=f3e78]
